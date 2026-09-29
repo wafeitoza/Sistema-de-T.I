@@ -1,0 +1,151 @@
+export type Perfil = 'Admin' | 'Gerente' | 'Técnico' | 'Visualizador'
+
+export interface Usuario {
+  email: string
+  nome: string
+  perfil: Perfil
+  setor: string
+  status: 'Ativo' | 'Inativo'
+  telefone?: string
+}
+
+export type StatusAtivo = 'Ativo' | 'Inativo' | 'Manutenção' | 'Descartado'
+
+export interface Ativo {
+  codigo: string
+  descricao: string
+  tipo: string
+  marca?: string
+  modelo?: string
+  serial?: string
+  setor: string
+  responsavel: string
+  status: StatusAtivo
+  dataAquisicao: string
+  valorAquisicao?: number
+  localizacao?: string
+  qrUrl: string
+  ultimaManutencao?: string
+  proximaManutencao?: string
+  notas?: string
+  criadoEm: string
+  atualizadoEm: string
+}
+
+export type StatusEstoque = 'Normal' | 'Baixo' | 'Zerado'
+
+export interface ItemEstoque {
+  codigo: string
+  descricao: string
+  categoria: string
+  quantidade: number
+  quantidadeMinima: number
+  unidade: string
+  fornecedor?: string
+  precoUnitario?: number
+  notas?: string
+}
+
+export type TipoEntrada = 'Compra' | 'Devolução' | 'Ajuste' | 'Doação'
+
+export interface Entrada {
+  id: string
+  data: string
+  codigoItem: string
+  quantidade: number
+  precoUnitario?: number
+  fornecedor?: string
+  tipo: TipoEntrada
+  nf?: string
+  usuario: string
+  notas?: string
+}
+
+export type TipoSaida = 'Fornecimento' | 'Destruição' | 'Empréstimo' | 'Devolução'
+
+export interface Saida {
+  id: string
+  data: string
+  codigoItem: string
+  quantidade: number
+  tipo: TipoSaida
+  responsavel: string
+  motivo?: string
+  usuario: string
+  observacoes?: string
+}
+
+export type StatusSolicitacao =
+  | 'Rascunho'
+  | 'Enviada'
+  | 'Aprovada'
+  | 'Rejeitada'
+  | 'Finalizada'
+
+export type TipoSolicitacao =
+  | 'Novo Ativo'
+  | 'Substituição'
+  | 'Reparo'
+  | 'Consumível'
+  | 'Manutenção'
+  | 'Outro'
+
+export type Prioridade = 'Alta' | 'Normal' | 'Baixa'
+
+export interface Solicitacao {
+  id: string
+  data: string
+  solicitante: string
+  tipo: TipoSolicitacao
+  descricao: string
+  prioridade: Prioridade
+  status: StatusSolicitacao
+  aprovador: string
+  token?: string
+  tokenExpiraEm?: string
+  dataAprovacao?: string
+  motivoRejeicao?: string
+  dataFinalizacao?: string
+  notasInternas?: string
+  criadoEm: string
+  atualizadoEm: string
+}
+
+export type StatusManutencao = 'Agendada' | 'Em Execução' | 'Concluída' | 'Cancelada'
+export type TipoManutencao = 'Preventiva' | 'Corretiva' | 'Inspeção'
+
+export interface Manutencao {
+  id: string
+  codigoAtivo: string
+  tipo: TipoManutencao
+  dataAgendada: string
+  dataRealizada?: string
+  tecnico: string
+  status: StatusManutencao
+  descricao: string
+  resultado?: string
+  proximaData?: string
+  custo?: number
+  criadoEm: string
+  atualizadoEm: string
+}
+
+export type AcaoLog = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT'
+
+export interface CampoDiff {
+  campo: string
+  antes: unknown
+  depois: unknown
+}
+
+export interface LogEntrada {
+  id: string
+  dataHora: string
+  usuario: string
+  acao: AcaoLog
+  tabela: string
+  registroId: string
+  campos: CampoDiff[]
+  resultado: 'Sucesso' | 'Erro'
+  mensagem?: string
+}

@@ -1,6 +1,6 @@
 # IT Stock & Inventory — React
 
-Sistema de gestão de T.I. (ativos, estoque, solicitações e manutenção) em React, baseado na especificação `IT-Stock-Specs/SISTEMA-IT-STOCK.md`.
+Sistema de gestão de T.I. (ativos, estoque, inventário, solicitações e manutenção) em React, baseado na especificação `IT-Stock-Specs/SISTEMA-IT-STOCK.md`.
 
 ## Stack
 
@@ -44,9 +44,9 @@ src/
 ├── types/        modelos de dados (Ativo, Estoque, Solicitação, Manutenção…)
 ├── data/         seed demo + repositório localStorage
 ├── lib/          regras: RN001 códigos, validação, permissões, auditoria, tokens HMAC
-├── store/        Zustand: auth, ativos, estoque, solicitacoes, manutencao, ui
+├── store/        Zustand: auth, ativos, estoque, solicitacoes, manutencao, inventario, ui
 ├── components/   layout (sidebar/header) + kit de UI
-└── pages/        login, dashboard, ativos, estoque, solicitacoes, manutencao
+└── pages/        login, dashboard, ativos, estoque, inventário, solicitacoes, manutencao
 ```
 
 ## Regras de negócio implementadas (MVP)
@@ -57,4 +57,7 @@ src/
 - **RN004** aprovação por link assinado (`/aprovacao/:token`, expira em 7 dias)
 - **RN007** manutenção: próxima preventiva = conclusão + 90 dias, alerta ≤ 5 dias
 - **RN009** auditoria: log + diff de cada operação
+- **RN010** inventário: contagem física de estoque com divergências e
+  ajuste automático de saldo (entradas/saídas tipo `Ajuste` + auditoria)
+- Relatório de ativos exportável em CSV (filtros, responsável e data no cabeçalho)
 - Perfis de acesso: Admin, Gerente, Técnico, Visualizador

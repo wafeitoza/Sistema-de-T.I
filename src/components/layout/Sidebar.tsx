@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   Boxes,
+  ClipboardCheck,
   ClipboardList,
   LayoutDashboard,
   LogOut,
@@ -20,6 +21,7 @@ const LINKS = [
   { para: '/', rotulo: 'Dashboard', icone: LayoutDashboard },
   { para: '/ativos', rotulo: 'Ativos', icone: Boxes },
   { para: '/estoque', rotulo: 'Estoque', icone: Package },
+  { para: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck },
   { para: '/solicitacoes', rotulo: 'Solicitações', icone: ClipboardList },
   { para: '/manutencao', rotulo: 'Manutenção', icone: Wrench },
 ]

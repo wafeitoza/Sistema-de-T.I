@@ -5,6 +5,7 @@ import { AprovacaoPage } from './pages/solicitacoes/AprovacaoPage'
 import { AtivosPage } from './pages/ativos/AtivosPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EstoquePage } from './pages/estoque/EstoquePage'
+import { InventarioPage } from './pages/inventario/InventarioPage'
 import { LoginPage } from './pages/LoginPage'
 import { ManutencaoPage } from './pages/manutencao/ManutencaoPage'
 import { SolicitacoesPage } from './pages/solicitacoes/SolicitacoesPage'
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/ativos" element={<AtivosPage />} />
           <Route path="/estoque" element={<EstoquePage />} />
+          <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/solicitacoes" element={<SolicitacoesPage />} />
           <Route path="/manutencao" element={<ManutencaoPage />} />
         </Route>

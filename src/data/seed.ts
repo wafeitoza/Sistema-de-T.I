@@ -2,6 +2,7 @@ import { gravarColecao } from './repository'
 import { urlQRCode } from '../lib/codes'
 import type {
   Ativo,
+  Contagem,
   Entrada,
   ItemEstoque,
   Manutencao,
@@ -361,6 +362,24 @@ const MANUTENCOES: Manutencao[] = [
   },
 ]
 
+const CONTAGENS: Contagem[] = [
+  {
+    id: 'INV-2026-000001',
+    nome: 'Contagem cíclica — periféricos',
+    data: '25/09/2026',
+    status: 'Em andamento',
+    responsavel: 'tecnico@empresa.com',
+    itens: [
+      { codigoItem: 'Item-001', contado: 45, contadoEm: '2026-09-25T13:10:00.000Z' },
+      { codigoItem: 'Item-002', contado: 10, contadoEm: '2026-09-25T13:12:00.000Z' },
+      { codigoItem: 'Item-003', contado: null },
+      { codigoItem: 'Item-005', contado: null },
+    ],
+    ajustesGerados: 0,
+    criadoEm: '2026-09-25T13:00:00.000Z',
+  },
+]
+
 export function aplicarSeed(): void {
   if (localStorage.getItem('ITSTOCK_SEEDED') === 'true') return
 
@@ -371,11 +390,13 @@ export function aplicarSeed(): void {
   gravarColecao<Saida>('SAIDAS', SAIDAS)
   gravarColecao<Solicitacao>('SOLICITACOES', SOLICITACOES)
   gravarColecao<Manutencao>('MANUTENCOES', MANUTENCOES)
+  gravarColecao<Contagem>('CONTAGENS', CONTAGENS)
 
   localStorage.setItem('ITSTOCK_SEQ_LOG', '0')
   localStorage.setItem('ITSTOCK_SEQ_SOL', '4')
   localStorage.setItem('ITSTOCK_SEQ_MAN', '3')
   localStorage.setItem('ITSTOCK_SEQ_EDD', '2')
   localStorage.setItem('ITSTOCK_SEQ_SAD', '2')
+  localStorage.setItem('ITSTOCK_SEQ_INV', '1')
   localStorage.setItem('ITSTOCK_SEEDED', 'true')
 }

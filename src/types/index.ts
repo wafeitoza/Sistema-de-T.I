@@ -61,7 +61,7 @@ export interface Entrada {
   notas?: string
 }
 
-export type TipoSaida = 'Fornecimento' | 'Destruição' | 'Empréstimo' | 'Devolução'
+export type TipoSaida = 'Fornecimento' | 'Destruição' | 'Empréstimo' | 'Devolução' | 'Ajuste'
 
 export interface Saida {
   id: string
@@ -73,6 +73,26 @@ export interface Saida {
   motivo?: string
   usuario: string
   observacoes?: string
+}
+
+export type StatusContagem = 'Em andamento' | 'Concluída'
+
+export interface ItemContagem {
+  codigoItem: string
+  contado: number | null
+  contadoEm?: string
+}
+
+export interface Contagem {
+  id: string
+  nome: string
+  data: string
+  status: StatusContagem
+  responsavel: string
+  itens: ItemContagem[]
+  concluidaEm?: string
+  ajustesGerados: number
+  criadoEm: string
 }
 
 export type StatusSolicitacao =

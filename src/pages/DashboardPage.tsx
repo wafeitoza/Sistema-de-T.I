@@ -103,7 +103,6 @@ export function DashboardPage() {
 
   const logs = lerColecao<LogEntrada>('LOG').slice(0, 6)
   const verSolicitacoes = usuario && podeAcessarRota('/solicitacoes', usuario.perfil)
-  const primeiroNome = (usuario?.nome ?? '').split(' ')[0]
   const dataExtenso = (() => {
     const d = new Date().toLocaleDateString('pt-BR', {
       weekday: 'long',
@@ -117,7 +116,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="anim-fade-up">
         <h1 className="text-2xl font-extrabold tracking-tight text-content">
-          Olá, <span className="gradient-text">{primeiroNome}</span>
+          Visão <span className="gradient-text">geral</span>
         </h1>
         <p className="mt-1 text-sm text-content-muted">
           Resumo do inventário de TI — {dataExtenso}

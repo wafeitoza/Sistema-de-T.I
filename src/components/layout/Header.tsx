@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Menu, Moon, Sun } from 'lucide-react'
+import { saudacao } from '../../lib/format'
+import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
+import { PrevisaoTempo } from './PrevisaoTempo'
 import { Relogio } from './Relogio'
 
 const TITULOS: Record<string, string> = {
@@ -14,13 +18,22 @@ const TITULOS: Record<string, string> = {
 
 export function Header() {
   const { pathname } = useLocation()
+  const usuario = useAuthStore((s) => s.usuario)
   const tema = useUiStore((s) => s.tema)
   const alternarTema = useUiStore((s) => s.alternarTema)
   const alternarSidebar = useUiStore((s) => s.alternarSidebar)
+  const [agora, setAgora] = useState(() => new Date())
+
+  useEffect(() => {
+    const id = setInterval(() => setAgora(new Date()), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const primeiroNome = usuario?.nome.split(' ')[0] ?? ''
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur md:px-6">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur md:px-6">
+      <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={alternarSidebar}
           className="rounded-lg p-2 text-content-muted hover:bg-surface-2 hover:text-content md:hidden"
@@ -28,20 +41,21 @@ export function Header() {
         >
           <Menu size={18} />
         </button>
-        <div>
+        <div className="min-w-0">
           <p
             key={pathname}
-            className="anim-fade-up text-sm font-bold tracking-tight text-content"
+            className="anim-fade-up truncate text-sm font-bold tracking-tight text-content"
           >
-            {TITULOS[pathname] ?? 'IT Stock'}
+            {saudacao(agora)}, <span className="gradient-text">{primeiroNome}</span>
           </p>
-          <p className="hidden text-[11px] text-content-muted sm:block">
-            Sistema de gestão de T.I.
+          <p className="hidden truncate text-[11px] text-content-muted sm:block">
+            {TITULOS[pathname] ?? 'IT Stock'} · Sistema de gestão de T.I.
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
+        <PrevisaoTempo />
         <Relogio />
         <button
           onClick={alternarTema}

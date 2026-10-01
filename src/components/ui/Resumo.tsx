@@ -9,7 +9,7 @@ export function Resumo({
   icone,
 }: {
   titulo: string
-  valor: string
+  valor: string | number
   destaque?: boolean
   icone?: ReactNode
 }) {

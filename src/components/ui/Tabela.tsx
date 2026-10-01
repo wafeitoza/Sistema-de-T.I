@@ -29,12 +29,16 @@ export function CabecalhoTabela({ colunas }: { colunas: string[] }) {
 export function Celula({
   children,
   className,
+  colSpan,
 }: {
   children: ReactNode
   className?: string
+  colSpan?: number
 }) {
   return (
-    <td className={cn('px-4 py-3 align-middle text-content', className)}>{children}</td>
+    <td className={cn('px-4 py-3 align-middle text-content', className)} colSpan={colSpan}>
+      {children}
+    </td>
   )
 }
 

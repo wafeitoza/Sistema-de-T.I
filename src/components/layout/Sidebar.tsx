@@ -7,6 +7,8 @@ import {
   LogOut,
   Moon,
   Package,
+  ScrollText,
+  Settings,
   Sun,
   Users,
   Wrench,
@@ -27,6 +29,8 @@ const LINKS = [
   { para: '/solicitacoes', rotulo: 'Solicitações', icone: ClipboardList },
   { para: '/manutencao', rotulo: 'Manutenção', icone: Wrench },
   { para: '/usuarios', rotulo: 'Usuários', icone: Users },
+  { para: '/auditoria', rotulo: 'Auditoria', icone: ScrollText },
+  { para: '/config', rotulo: 'Configurações', icone: Settings },
 ]
 
 export function Sidebar() {

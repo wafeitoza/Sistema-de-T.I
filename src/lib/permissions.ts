@@ -12,6 +12,8 @@ export const ACESSO_ROTA: Record<string, Perfil[]> = {
   '/manutencao': TODOS,
   '/solicitacoes': ['Admin', 'Gerente'],
   '/usuarios': ['Admin'],
+  '/auditoria': ['Admin', 'Gerente'],
+  '/config': ['Admin'],
 }
 
 export function podeAcessarRota(rota: string, perfil: Perfil): boolean {

@@ -152,7 +152,15 @@ export interface Manutencao {
   atualizadoEm: string
 }
 
-export type AcaoLog = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT'
+export type AcaoLog =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'IMPORT'
+  | 'EXPORT'
+  | 'RESET'
 
 export interface CampoDiff {
   campo: string

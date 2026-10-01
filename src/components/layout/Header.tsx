@@ -14,6 +14,7 @@ const TITULOS: Record<string, string> = {
   '/inventario': 'Inventário',
   '/solicitacoes': 'Solicitações',
   '/manutencao': 'Manutenção',
+  '/usuarios': 'Usuários',
 }
 
 export function Header() {

@@ -8,6 +8,7 @@ import {
   Moon,
   Package,
   Sun,
+  Users,
   Wrench,
   X,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ const LINKS = [
   { para: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck },
   { para: '/solicitacoes', rotulo: 'Solicitações', icone: ClipboardList },
   { para: '/manutencao', rotulo: 'Manutenção', icone: Wrench },
+  { para: '/usuarios', rotulo: 'Usuários', icone: Users },
 ]
 
 function iniciais(nome: string): string {

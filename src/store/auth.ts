@@ -18,6 +18,7 @@ interface AuthState {
   usuario: Usuario | null
   entrar: (email: string) => boolean
   sair: () => void
+  atualizarSessao: (usuario: Usuario) => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -49,5 +50,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     localStorage.removeItem(CHAVE_SESSAO)
     set({ usuario: null })
+  },
+  atualizarSessao: (usuario) => {
+    localStorage.setItem(CHAVE_SESSAO, JSON.stringify(usuario))
+    set({ usuario })
   },
 }))

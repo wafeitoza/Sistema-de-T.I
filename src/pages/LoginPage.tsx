@@ -101,14 +101,22 @@ export function LoginPage() {
                 style={{ animationDelay: `${220 + i * 80}ms` }}
                 className="shine anim-fade-up group flex w-full items-center gap-3 rounded-xl border border-line bg-surface/60 px-3 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-light/50 hover:shadow-lg hover:shadow-primary/15 active:translate-y-0 active:scale-[0.99] dark:hover:bg-primary/10"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-surface-3 to-surface-2 text-xs font-bold text-content transition-all duration-300 group-hover:scale-110 group-hover:from-primary/25 group-hover:to-info/20 group-hover:text-primary">
-                  {u.nome
-                    .split(' ')
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join('')
-                    .toUpperCase()}
-                </div>
+                {u.foto ? (
+                  <img
+                    src={u.foto}
+                    alt={u.nome}
+                    className="h-10 w-10 shrink-0 rounded-xl object-cover shadow-md transition-all duration-300 group-hover:scale-110"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-surface-3 to-surface-2 text-xs font-bold text-content transition-all duration-300 group-hover:scale-110 group-hover:from-primary/25 group-hover:to-info/20 group-hover:text-primary">
+                    {u.nome
+                      .split(' ')
+                      .map((p) => p[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase()}
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-content">{u.nome}</p>
                   <p className="truncate text-xs text-content-muted">{u.email}</p>

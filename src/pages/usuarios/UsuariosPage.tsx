@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { Pencil, Plus, Search } from 'lucide-react'
+import { useMemo, useState, type ChangeEvent } from 'react'
+import { Camera, Pencil, Plus, Search } from 'lucide-react'
+import { Avatar } from '../../components/ui/Avatar'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
@@ -10,6 +11,7 @@ import { Resumo } from '../../components/ui/Resumo'
 import { CabecalhoTabela, Celula, Linha, Tabela } from '../../components/ui/Tabela'
 import { gravarColecao, lerColecao } from '../../data/repository'
 import { calcularDiff, registrarLog } from '../../lib/audit'
+import { redimensionarImagem } from '../../lib/image'
 import { TODOS_PERFIS } from '../../lib/permissions'
 import { validarEmail } from '../../lib/validation'
 import { useAuthStore } from '../../store/auth'
@@ -26,15 +28,6 @@ const TOM_PERFIL: Record<Perfil, 'primary' | 'info' | 'success' | 'neutral'> = {
 const STATUS_USUARIO = ['Ativo', 'Inativo'] as const
 
 type AlvoModal = 'criar' | Usuario | null
-
-function iniciais(nome: string): string {
-  return nome
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
 
 export function UsuariosPage() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -54,6 +47,7 @@ export function UsuariosPage() {
     telefone: '',
     perfil: 'Visualizador' as Perfil,
     status: 'Ativo' as 'Ativo' | 'Inativo',
+    foto: undefined as string | undefined,
   })
 
   const editando = alvo !== null && alvo !== 'criar' ? alvo : null
@@ -83,6 +77,7 @@ export function UsuariosPage() {
       telefone: u.telefone ?? '',
       perfil: u.perfil,
       status: u.status,
+      foto: u.foto,
     })
   }
 
@@ -96,12 +91,42 @@ export function UsuariosPage() {
       telefone: '',
       perfil: 'Visualizador',
       status: 'Ativo',
+      foto: undefined,
     })
   }
 
   function fechar() {
     setAlvo(null)
     setErros({})
+  }
+
+  function limparErroFoto() {
+    setErros((e) => {
+      if (!e.foto) return e
+      const { foto: _foto, ...resto } = e
+      return resto
+    })
+  }
+
+  async function aoEscolherFoto(e: ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0]
+    e.target.value = ''
+    if (!arquivo) return
+    if (!arquivo.type.startsWith('image/')) {
+      setErros((erros) => ({ ...erros, foto: 'Selecione um arquivo de imagem' }))
+      return
+    }
+    if (arquivo.size > 5 * 1024 * 1024) {
+      setErros((erros) => ({ ...erros, foto: 'A imagem pode ter no máximo 5 MB' }))
+      return
+    }
+    try {
+      const foto = await redimensionarImagem(arquivo, 256, 0.8)
+      setForm((f) => ({ ...f, foto }))
+      limparErroFoto()
+    } catch {
+      setErros((erros) => ({ ...erros, foto: 'Não foi possível ler a imagem' }))
+    }
   }
 
   function salvar() {
@@ -133,6 +158,7 @@ export function UsuariosPage() {
         setor: form.setor.trim(),
         status: form.status,
         telefone: form.telefone.trim() || undefined,
+        foto: form.foto,
       }
       gravarColecao('USUARIOS', [...lista, novo])
       registrarLog({
@@ -158,12 +184,14 @@ export function UsuariosPage() {
       telefone: form.telefone.trim() || undefined,
       perfil: proprio ? antes.perfil : form.perfil,
       status: proprio ? antes.status : form.status,
+      foto: form.foto,
     }
 
+    const mudouFoto = antes.foto !== depois.foto
     const diff = calcularDiff(
       antes as unknown as Record<string, unknown>,
       depois as unknown as Record<string, unknown>,
-    )
+    ).filter((c) => c.campo !== 'foto')
     gravarColecao(
       'USUARIOS',
       lista.map((u) => (u.email === antes.email ? depois : u)),
@@ -174,7 +202,7 @@ export function UsuariosPage() {
       tabela: 'USUARIOS',
       registroId: antes.email,
       campos: diff,
-      mensagem: `Perfil de ${depois.nome} atualizado`,
+      mensagem: `Perfil de ${depois.nome} atualizado${mudouFoto ? ' (foto alterada)' : ''}`,
     })
     if (proprio) atualizarSessao(depois)
     setUsuarios((atuais) =>
@@ -230,9 +258,11 @@ export function UsuariosPage() {
               <Linha key={u.email}>
                 <Celula>
                   <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-gradient-to-br from-primary to-info text-xs font-bold text-white shadow-md">
-                      {iniciais(u.nome)}
-                    </span>
+                    <Avatar
+                      nome={u.nome}
+                      foto={u.foto}
+                      className="h-9 w-9 rounded-lg text-xs shadow-md"
+                    />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-content">
                         {u.nome}
@@ -319,6 +349,45 @@ export function UsuariosPage() {
             placeholder="nome@empresa.com"
             className="sm:col-span-2"
           />
+          <div className="flex items-center gap-4 rounded-xl border border-line bg-surface-2 p-3 sm:col-span-2">
+            <Avatar
+              nome={form.nome || '?'}
+              foto={form.foto}
+              className="h-16 w-16 rounded-lg text-base"
+            />
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <p className="text-xs font-medium text-content-muted">
+                Foto de perfil
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-xs font-medium text-content transition-all hover:border-primary/40 hover:text-primary focus-within:ring-2 focus-within:ring-primary/30">
+                  <Camera size={14} />
+                  {form.foto ? 'Trocar foto' : 'Escolher foto'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={aoEscolherFoto}
+                  />
+                </label>
+                {form.foto && (
+                  <Botao
+                    variante="secundario"
+                    tamanho="sm"
+                    onClick={() => setForm((f) => ({ ...f, foto: undefined }))}
+                  >
+                    Remover
+                  </Botao>
+                )}
+              </div>
+              <p className="text-[11px] text-content-muted">
+                PNG, JPG ou WebP de até 5 MB — otimizada para 256px.
+              </p>
+              {erros.foto && (
+                <span className="text-xs text-danger">{erros.foto}</span>
+              )}
+            </div>
+          </div>
           <Entrada
             label="Setor *"
             value={form.setor}

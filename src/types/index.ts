@@ -7,6 +7,7 @@ export interface Usuario {
   setor: string
   status: 'Ativo' | 'Inativo'
   telefone?: string
+  foto?: string
 }
 
 export type StatusAtivo = 'Ativo' | 'Inativo' | 'Manutenção' | 'Descartado'

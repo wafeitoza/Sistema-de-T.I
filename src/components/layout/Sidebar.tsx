@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { podeAcessarRota } from '../../lib/permissions'
+import { Avatar } from '../ui/Avatar'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import type { Perfil } from '../../types'
@@ -27,15 +28,6 @@ const LINKS = [
   { para: '/manutencao', rotulo: 'Manutenção', icone: Wrench },
   { para: '/usuarios', rotulo: 'Usuários', icone: Users },
 ]
-
-function iniciais(nome: string): string {
-  return nome
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
 
 export function Sidebar() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -104,9 +96,11 @@ export function Sidebar() {
         </button>
 
         <div className="flex items-center gap-3 rounded-xl border border-line bg-gradient-to-r from-surface-2 via-surface-3 to-surface-2 px-3 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gradient-to-br from-primary to-info text-xs font-bold text-white shadow-md">
-            {iniciais(usuario.nome)}
-          </div>
+          <Avatar
+            nome={usuario.nome}
+            foto={usuario.foto}
+            className="h-9 w-9 rounded-lg text-xs shadow-md"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-content">{usuario.nome}</p>
             <p className="truncate text-[11px] text-content-muted">{usuario.perfil}</p>

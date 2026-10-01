@@ -44,7 +44,8 @@ export function AtivosPage() {
         a.codigo.toLowerCase().includes(termo) ||
         a.descricao.toLowerCase().includes(termo) ||
         a.responsavel.toLowerCase().includes(termo) ||
-        (a.serial ?? '').toLowerCase().includes(termo)
+        (a.serial ?? '').toLowerCase().includes(termo) ||
+        (a.tombamento ?? '').toLowerCase().includes(termo)
       )
     })
   }, [ativos, busca, filtroTipo, filtroSetor, filtroStatus])
@@ -231,6 +232,11 @@ export function AtivosPage() {
             <div>
               <p className="text-sm font-semibold text-content">{qrAtivo.descricao}</p>
               <p className="font-mono text-xs text-content-muted">{qrAtivo.codigo}</p>
+              {qrAtivo.tombamento && (
+                <p className="font-mono text-xs text-primary">
+                  Tombamento: {qrAtivo.tombamento}
+                </p>
+              )}
             </div>
             <a
               href={qrAtivo.qrUrl}

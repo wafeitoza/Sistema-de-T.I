@@ -22,6 +22,7 @@ export interface NovoAtivo {
   marca?: string
   modelo?: string
   serial?: string
+  tombamento?: string
   setor: string
   responsavel: string
   dataAquisicao: string

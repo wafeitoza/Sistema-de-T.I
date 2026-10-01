@@ -384,6 +384,10 @@ export function aplicarSeed(): void {
   if (localStorage.getItem('ITSTOCK_SEEDED') === 'true') return
 
   gravarColecao<Usuario>('USUARIOS', USUARIOS)
+  ATIVOS.forEach((a, i) => {
+    if (!a.tombamento) a.tombamento = `TOM-${String(i + 1).padStart(6, '0')}`
+  })
+
   gravarColecao<Ativo>('ATIVOS', ATIVOS)
   gravarColecao<ItemEstoque>('ESTOQUE', ESTOQUE)
   gravarColecao<Entrada>('ENTRADAS', ENTRADAS)

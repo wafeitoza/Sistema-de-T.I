@@ -18,6 +18,7 @@ export interface Ativo {
   marca?: string
   modelo?: string
   serial?: string
+  tombamento?: string
   setor: string
   responsavel: string
   status: StatusAtivo

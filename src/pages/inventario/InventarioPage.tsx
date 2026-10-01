@@ -103,6 +103,7 @@ export function InventarioPage() {
     }
     const colunas = [
       'Código',
+      'Tombamento',
       'Descrição',
       'Tipo',
       'Marca',
@@ -119,6 +120,7 @@ export function InventarioPage() {
     ]
     const linhas = filtrados.map((a) => [
       a.codigo,
+      a.tombamento ?? '',
       a.descricao,
       a.tipo,
       a.marca ?? '',
@@ -325,6 +327,7 @@ export function InventarioPage() {
               <CabecalhoTabela
                 colunas={[
                   'Código',
+                  'Tombamento',
                   'Descrição',
                   'Setor',
                   'Responsável',
@@ -337,6 +340,7 @@ export function InventarioPage() {
                 {filtrados.map((a) => (
                   <Linha key={a.codigo}>
                     <Celula className="font-mono text-xs font-semibold">{a.codigo}</Celula>
+                    <Celula className="font-mono text-xs">{a.tombamento ?? '—'}</Celula>
                     <Celula>
                       <p className="font-medium">{a.descricao}</p>
                       <p className="text-xs text-content-muted">

@@ -19,6 +19,7 @@ interface Formulario {
   marca: string
   modelo: string
   serial: string
+  tombamento: string
   setor: string
   responsavel: string
   dataAquisicao: string
@@ -33,6 +34,7 @@ const VAZIO: Formulario = {
   marca: '',
   modelo: '',
   serial: '',
+  tombamento: '',
   setor: '',
   responsavel: '',
   dataAquisicao: '',
@@ -58,6 +60,7 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
             marca: ativo.marca ?? '',
             modelo: ativo.modelo ?? '',
             serial: ativo.serial ?? '',
+            tombamento: ativo.tombamento ?? '',
             setor: ativo.setor,
             responsavel: ativo.responsavel,
             dataAquisicao: ativo.dataAquisicao,
@@ -86,6 +89,7 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
       marca: form.marca.trim() || undefined,
       modelo: form.modelo.trim() || undefined,
       serial: form.serial.trim() || undefined,
+      tombamento: form.tombamento.trim() || undefined,
       setor: form.setor,
       responsavel: form.responsavel.trim(),
       dataAquisicao: form.dataAquisicao,
@@ -159,6 +163,12 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
           value={form.serial}
           onChange={(e) => campo('serial', e.target.value)}
           placeholder="DL5540-9921"
+        />
+        <Entrada
+          label="Tombamento"
+          value={form.tombamento}
+          onChange={(e) => campo('tombamento', e.target.value)}
+          placeholder="TOM-000123"
         />
         <Entrada
           label="Responsável (e-mail) *"

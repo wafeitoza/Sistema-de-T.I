@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Botao } from '../../components/ui/Botao'
-import { AreaTexto, Entrada, Selecao } from '../../components/ui/Campos'
+import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { Modal } from '../../components/ui/Modal'
 import { CATEGORIAS_ESTOQUE, UNIDADES } from '../../lib/codes'
 import { FORNECEDORES } from '../../data/seed'
+import { formatarNumeroBR, parseMoeda } from '../../lib/format'
 import {
   useEstoqueStore,
   type DadosEntrada,
@@ -49,7 +50,7 @@ export function ItemEstoqueModal({
             quantidadeMinima: String(item.quantidadeMinima),
             unidade: item.unidade,
             fornecedor: item.fornecedor ?? '',
-            precoUnitario: item.precoUnitario?.toString() ?? '',
+            precoUnitario: formatarNumeroBR(item.precoUnitario),
             notas: item.notas ?? '',
           }
         : {
@@ -83,7 +84,7 @@ export function ItemEstoqueModal({
       quantidadeMinima: minimo,
       unidade: form.unidade,
       fornecedor: form.fornecedor || undefined,
-      precoUnitario: form.precoUnitario ? Number(form.precoUnitario) : undefined,
+      precoUnitario: parseMoeda(form.precoUnitario),
       notas: form.notas.trim() || undefined,
     }
 
@@ -140,13 +141,11 @@ export function ItemEstoqueModal({
           type="number"
           min="0"
         />
-        <Entrada
-          label="Preço unitário (R$)"
-          value={form.precoUnitario}
-          onChange={(e) => setForm({ ...form, precoUnitario: e.target.value })}
-          type="number"
-          min="0"
-          step="0.01"
+        <CampoMoeda
+          label="Preço unitário"
+          valor={form.precoUnitario}
+          aoMudar={(texto) => setForm({ ...form, precoUnitario: texto })}
+          placeholder="0,00"
         />
         <Selecao
           label="Fornecedor"

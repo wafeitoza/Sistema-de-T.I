@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Botao } from '../../components/ui/Botao'
-import { AreaTexto, Entrada, Selecao } from '../../components/ui/Campos'
+import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { Modal } from '../../components/ui/Modal'
 import { SETORES, TIPOS_ATIVO } from '../../lib/codes'
+import { formatarNumeroBR, parseMoeda } from '../../lib/format'
 import { errosAtivo } from '../../lib/validation'
 import { useAtivosStore } from '../../store/ativos'
 import type { Ativo } from '../../types'
@@ -64,7 +65,7 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
             setor: ativo.setor,
             responsavel: ativo.responsavel,
             dataAquisicao: ativo.dataAquisicao,
-            valorAquisicao: ativo.valorAquisicao?.toString() ?? '',
+            valorAquisicao: formatarNumeroBR(ativo.valorAquisicao),
             localizacao: ativo.localizacao ?? '',
             notas: ativo.notas ?? '',
           }
@@ -93,7 +94,7 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
       setor: form.setor,
       responsavel: form.responsavel.trim(),
       dataAquisicao: form.dataAquisicao,
-      valorAquisicao: form.valorAquisicao ? Number(form.valorAquisicao) : undefined,
+      valorAquisicao: parseMoeda(form.valorAquisicao),
       localizacao: form.localizacao.trim() || undefined,
       notas: form.notas.trim() || undefined,
     }
@@ -186,14 +187,11 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
           placeholder="DD/MM/AAAA"
           inputMode="numeric"
         />
-        <Entrada
-          label="Valor de aquisição (R$)"
-          value={form.valorAquisicao}
-          onChange={(e) => campo('valorAquisicao', e.target.value)}
-          placeholder="5490"
-          type="number"
-          min="0"
-          step="0.01"
+        <CampoMoeda
+          label="Valor de aquisição"
+          valor={form.valorAquisicao}
+          aoMudar={(texto) => campo('valorAquisicao', texto)}
+          placeholder="0,00"
         />
         <Entrada
           label="Localização física"

@@ -3,12 +3,12 @@ import { CalendarPlus, CheckCircle2, Play, Plus, XCircle } from 'lucide-react'
 import { BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
-import { AreaTexto, Entrada, Selecao } from '../../components/ui/Campos'
+import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { lerColecao } from '../../data/repository'
-import { diasAte, formatarData } from '../../lib/format'
+import { diasAte, formatarData, parseMoeda } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
 import { useAtivosStore } from '../../store/ativos'
 import { useAuthStore } from '../../store/auth'
@@ -99,7 +99,7 @@ export function ManutencaoPage() {
     if (!paraConcluir) return
     concluir(paraConcluir.id, {
       resultado: resultadoConclusao,
-      custo: custo ? Number(custo) : undefined,
+      custo: parseMoeda(custo),
     })
     setParaConcluir(null)
     setCusto('')
@@ -334,13 +334,10 @@ export function ManutencaoPage() {
               (r) => ({ valor: r, rotulo: r }),
             )}
           />
-          <Entrada
-            label="Custo (R$)"
-            value={custo}
-            onChange={(e) => setCusto(e.target.value)}
-            type="number"
-            min="0"
-            step="0.01"
+          <CampoMoeda
+            label="Custo"
+            valor={custo}
+            aoMudar={setCusto}
             placeholder="0,00"
           />
           <p className="text-xs text-content-muted">

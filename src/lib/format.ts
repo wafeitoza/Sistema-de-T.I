@@ -55,3 +55,24 @@ export function saudacao(data: Date = new Date()): string {
   if (hora >= 12 && hora < 18) return 'Boa tarde'
   return 'Boa noite'
 }
+
+export function formatarNumeroBR(valor: number | undefined | null): string {
+  if (valor === undefined || valor === null || Number.isNaN(valor)) return ''
+  return valor.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+export function parseMoeda(texto: string): number | undefined {
+  const bruto = texto.replace(/R\$/gi, '').replace(/\s/g, '').trim()
+  if (!bruto) return undefined
+  let normal = bruto
+  if (normal.includes(',')) {
+    normal = normal.replace(/\./g, '').replace(',', '.')
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(normal)) {
+    normal = normal.replace(/\./g, '')
+  }
+  const n = Number(normal)
+  return Number.isFinite(n) ? n : undefined
+}

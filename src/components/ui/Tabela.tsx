@@ -4,7 +4,7 @@ import { cn } from '../../lib/cn'
 export function Tabela({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-      <table className={cn('w-full text-left text-sm', className)}>{children}</table>
+      <table className={cn('tabela-animada w-full text-left text-sm', className)}>{children}</table>
     </div>
   )
 }

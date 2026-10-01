@@ -13,6 +13,7 @@ import { TituloSecao } from '../../components/ui/Card'
 import { Selecao } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
+import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { CATEGORIAS_ESTOQUE } from '../../lib/codes'
 import { formatarMoeda } from '../../lib/format'
@@ -286,27 +287,6 @@ export function EstoquePage() {
           </ul>
         )}
       </Modal>
-    </div>
-  )
-}
-
-function Resumo({
-  titulo,
-  valor,
-  destaque,
-}: {
-  titulo: string
-  valor: string
-  destaque?: boolean
-}) {
-  return (
-    <div className="rounded-xl border border-line bg-surface p-4">
-      <p className="text-xs text-content-muted">{titulo}</p>
-      <p
-        className={`mt-1 text-xl font-semibold ${destaque ? 'text-danger' : 'text-content'}`}
-      >
-        {valor}
-      </p>
     </div>
   )
 }

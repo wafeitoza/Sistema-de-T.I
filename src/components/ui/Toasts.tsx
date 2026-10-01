@@ -44,5 +44,5 @@ export function Toasts() {
 }
 
 function cnToast(borda: string): string {
-  return `pointer-events-auto flex items-start gap-2 rounded-lg border border-line border-l-4 bg-surface px-3 py-2.5 shadow-lg ${borda}`
+  return `anim-slide-right glass pointer-events-auto flex items-start gap-2 rounded-xl border border-line border-l-4 px-3.5 py-3 shadow-card-hover ${borda}`
 }

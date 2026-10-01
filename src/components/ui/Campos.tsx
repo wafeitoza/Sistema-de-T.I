@@ -7,7 +7,7 @@ import type {
 import { cn } from '../../lib/cn'
 
 const BASE =
-  'w-full rounded-lg border border-line bg-surface px-3 text-sm text-content placeholder:text-content-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50'
+  'w-full rounded-lg border border-line bg-surface px-3 text-sm text-content placeholder:text-content-muted transition-all duration-200 hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50'
 
 const BASE_ERRO = 'border-danger focus:border-danger focus:ring-danger/30'
 

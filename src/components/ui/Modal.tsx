@@ -30,12 +30,12 @@ export function Modal({ aberto, aoFechar, titulo, children, rodape, largo }: Mod
       aria-modal="true"
     >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="anim-fade-in absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={aoFechar}
       />
       <div
         className={cn(
-          'relative z-10 flex max-h-[90vh] w-full flex-col rounded-xl bg-surface shadow-xl',
+          'anim-scale-in relative z-10 flex max-h-[90vh] w-full flex-col rounded-xl bg-surface shadow-2xl',
           largo ? 'max-w-2xl' : 'max-w-lg',
         )}
       >

@@ -49,13 +49,13 @@ export function Sidebar() {
   const conteudo = (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-5 py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white">
+        <div className="group flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary to-info text-white shadow-lg shadow-primary/30 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
             <Boxes size={18} />
           </div>
           <div>
-            <p className="text-sm font-semibold leading-tight text-content">IT Stock</p>
-            <p className="text-[11px] text-content-muted">Inventory & Assets</p>
+            <p className="text-sm font-extrabold tracking-tight text-content">IT Stock</p>
+            <p className="text-[11px] font-medium text-content-muted">Inventory & Assets</p>
           </div>
         </div>
         <button
@@ -76,14 +76,17 @@ export function Sidebar() {
             onClick={alternarSidebar}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
                 isActive
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/30'
                   : 'text-content-muted hover:bg-surface-2 hover:text-content',
               )
             }
           >
-            <l.icone size={18} />
+            <l.icone
+              size={18}
+              className="transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110"
+            />
             {l.rotulo}
           </NavLink>
         ))}
@@ -92,14 +95,14 @@ export function Sidebar() {
       <div className="border-t border-line p-3">
         <button
           onClick={alternarTema}
-          className="mb-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-content-muted transition-colors hover:bg-surface-2 hover:text-content"
+          className="mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-content-muted transition-all duration-200 hover:translate-x-0.5 hover:bg-surface-2 hover:text-content"
         >
           {tema === 'claro' ? <Moon size={18} /> : <Sun size={18} />}
           {tema === 'claro' ? 'Tema escuro' : 'Tema claro'}
         </button>
 
-        <div className="flex items-center gap-3 rounded-lg bg-surface-2 px-3 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+        <div className="flex items-center gap-3 rounded-xl border border-line bg-gradient-to-r from-surface-2 via-surface-3 to-surface-2 px-3 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gradient-to-br from-primary to-info text-xs font-bold text-white shadow-md">
             {iniciais(usuario.nome)}
           </div>
           <div className="min-w-0 flex-1">

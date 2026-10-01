@@ -19,11 +19,13 @@ export function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
         <main className="flex-1 p-4 md:p-6">
-          {permitido ? (
-            <OutletContent />
-          ) : (
-            <AcessoNegado perfil={usuario.perfil} />
-          )}
+          <div key={pathname} className="anim-pagina">
+            {permitido ? (
+              <OutletContent />
+            ) : (
+              <AcessoNegado perfil={usuario.perfil} />
+            )}
+          </div>
         </main>
       </div>
     </div>
@@ -36,8 +38,8 @@ function OutletContent() {
 
 function AcessoNegado({ perfil }: { perfil: string }) {
   return (
-    <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-3 rounded-xl border border-line bg-surface p-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-danger/15">
+    <div className="anim-bounce-in mx-auto mt-16 flex max-w-md flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-8 text-center shadow-card">
+      <div className="anim-pulse-ring flex h-12 w-12 items-center justify-center rounded-full bg-danger/15">
         <ShieldAlert size={22} className="text-danger" />
       </div>
       <h2 className="text-base font-semibold text-content">Acesso restrito</h2>

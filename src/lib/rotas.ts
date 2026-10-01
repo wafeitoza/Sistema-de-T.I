@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Boxes,
   ClipboardCheck,
   ClipboardList,
@@ -24,6 +25,7 @@ export const ROTAS_NAVEGACAO: RotaNav[] = [
   { para: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck },
   { para: '/solicitacoes', rotulo: 'Solicitações', icone: ClipboardList },
   { para: '/manutencao', rotulo: 'Manutenção', icone: Wrench },
+  { para: '/relatorios', rotulo: 'Relatórios', icone: BarChart3 },
   { para: '/usuarios', rotulo: 'Usuários', icone: Users },
   { para: '/auditoria', rotulo: 'Auditoria', icone: ScrollText },
   { para: '/config', rotulo: 'Configurações', icone: Settings },

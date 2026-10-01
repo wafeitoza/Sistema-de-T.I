@@ -15,6 +15,7 @@ const TITULOS: Record<string, string> = {
   '/inventario': 'Inventário',
   '/solicitacoes': 'Solicitações',
   '/manutencao': 'Manutenção',
+  '/relatorios': 'Relatórios',
   '/usuarios': 'Usuários',
   '/auditoria': 'Auditoria',
   '/config': 'Configurações',
@@ -37,7 +38,7 @@ export function Header() {
   const primeiroNome = usuario?.nome.split(' ')[0] ?? ''
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur md:px-6 print:hidden">
       <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={alternarSidebar}

@@ -99,12 +99,12 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="hidden w-64 shrink-0 border-r border-line bg-surface md:block">
+      <aside className="hidden w-64 shrink-0 border-r border-line bg-surface md:block print:hidden">
         <div className="sticky top-0 h-screen">{conteudo}</div>
       </aside>
 
       {sidebarAberta && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-40 md:hidden print:hidden">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={alternarSidebar}

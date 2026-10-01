@@ -6,6 +6,7 @@ import { AtivosPage } from './pages/ativos/AtivosPage'
 import { AuditoriaPage } from './pages/auditoria/AuditoriaPage'
 import { ConfiguracoesPage } from './pages/config/ConfiguracoesPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { RelatoriosPage } from './pages/relatorios/RelatoriosPage'
 import { EstoquePage } from './pages/estoque/EstoquePage'
 import { InventarioPage } from './pages/inventario/InventarioPage'
 import { LoginPage } from './pages/LoginPage'
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/solicitacoes" element={<SolicitacoesPage />} />
           <Route path="/manutencao" element={<ManutencaoPage />} />
           <Route path="/usuarios" element={<UsuariosPage />} />
+          <Route path="/relatorios" element={<RelatoriosPage />} />
           <Route path="/auditoria" element={<AuditoriaPage />} />
           <Route path="/config" element={<ConfiguracoesPage />} />
         </Route>

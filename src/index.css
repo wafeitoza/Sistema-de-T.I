@@ -442,3 +442,26 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Impressão — força o tema claro e remove o cromo da interface. */
+@media print {
+  :root,
+  .dark {
+    --surface: #ffffff;
+    --surface-2: #f6f8fb;
+    --surface-3: #eef1f6;
+    --content: #0f172a;
+    --content-muted: #64748b;
+    --border: #e2e8f0;
+    --sombra-card: none;
+    --sombra-card-hover: none;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+}

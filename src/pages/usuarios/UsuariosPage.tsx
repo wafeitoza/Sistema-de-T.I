@@ -7,12 +7,14 @@ import { TituloSecao } from '../../components/ui/Card'
 import { Entrada, Selecao } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
+import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { CabecalhoTabela, Celula, Linha, Tabela } from '../../components/ui/Tabela'
 import { gravarColecao, lerColecao } from '../../data/repository'
 import { calcularDiff, registrarLog } from '../../lib/audit'
 import { redimensionarImagem } from '../../lib/image'
 import { TODOS_PERFIS } from '../../lib/permissions'
+import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { validarEmail } from '../../lib/validation'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
@@ -50,6 +52,8 @@ export function UsuariosPage() {
     foto: undefined as string | undefined,
   })
 
+  const { ord, ordenar } = useOrdenacao('nome')
+
   const editando = alvo !== null && alvo !== 'criar' ? alvo : null
   const criando = alvo === 'criar'
   const proprio = !!editando && !!usuario && editando.email === usuario.email
@@ -63,6 +67,12 @@ export function UsuariosPage() {
       ),
     )
   }, [usuarios, busca])
+
+  const pag = usePaginacao(filtrados.length)
+  const visiveis = useMemo(
+    () => ordenarPor(filtrados, ord).slice(pag.inicio, pag.fim),
+    [filtrados, ord, pag.inicio, pag.fim],
+  )
 
   const ativos = usuarios.filter((u) => u.status === 'Ativo').length
   const admins = usuarios.filter((u) => u.perfil === 'Admin').length
@@ -252,9 +262,12 @@ export function UsuariosPage() {
         <Tabela>
           <CabecalhoTabela
             colunas={['Usuário', 'Perfil', 'Setor', 'Telefone', 'Status', '']}
+            chaves={['nome', 'perfil', 'setor', 'telefone', 'status', null]}
+            ord={ord}
+            aoOrdenar={ordenar}
           />
           <tbody>
-            {filtrados.map((u) => (
+            {visiveis.map((u) => (
               <Linha key={u.email}>
                 <Celula>
                   <div className="flex items-center gap-3">
@@ -310,6 +323,17 @@ export function UsuariosPage() {
               <Plus size={16} /> Novo usuário
             </Botao>
           }
+        />
+      )}
+
+      {filtrados.length > 0 && (
+        <Paginacao
+          pagina={pag.pagina}
+          totalPaginas={pag.totalPaginas}
+          totalItens={filtrados.length}
+          exibindoDe={pag.inicio + 1}
+          exibindoAte={pag.fim}
+          aoMudar={pag.setPagina}
         />
       )}
 

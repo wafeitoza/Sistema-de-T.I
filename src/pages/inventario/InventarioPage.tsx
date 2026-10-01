@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { ClipboardCheck, Download, ListChecks, Plus, Search } from 'lucide-react'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
 import { Selecao } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
+import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { cn } from '../../lib/cn'
@@ -12,6 +13,7 @@ import { SETORES, TIPOS_ATIVO } from '../../lib/codes'
 import { exportarCSV } from '../../lib/exportar'
 import { formatarData, formatarMoeda } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
+import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { useAtivosStore } from '../../store/ativos'
 import { useAuthStore } from '../../store/auth'
 import { useEstoqueStore } from '../../store/estoque'
@@ -45,20 +47,22 @@ export function InventarioPage() {
   const [filtroStatus, setFiltroStatus] = useState('')
   const [filtroSetor, setFiltroSetor] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
+  const { ord, ordenar } = useOrdenacao('codigo')
+  const { ord: ordContagem, ordenar: ordenarContagem } = useOrdenacao('id')
 
   const contagemSelecionada = contagens.find((c) => c.id === contagemAberta) ?? null
 
-  function divergenciasDe(c: Contagem): number {
+  const divergenciasDe = useCallback((c: Contagem): number => {
     return c.itens.filter((ic) => {
       if (ic.contado === null) return false
       const item = itens.find((i) => i.codigo === ic.codigoItem)
       return item !== undefined && ic.contado !== item.quantidade
     }).length
-  }
+  }, [itens])
 
-  function contadosDe(c: Contagem): number {
+  const contadosDe = useCallback((c: Contagem): number => {
     return c.itens.filter((i) => i.contado !== null).length
-  }
+  }, [])
 
   const abertas = contagens.filter((c) => c.status === 'Em andamento')
   const totalPendentes = abertas.reduce((s, c) => s + (c.itens.length - contadosDe(c)), 0)
@@ -79,6 +83,23 @@ export function InventarioPage() {
       )
     })
   }, [ativos, busca, filtroStatus, filtroSetor, filtroTipo])
+
+  const ordenados = useMemo(() => ordenarPor(filtrados, ord), [filtrados, ord])
+  const pag = usePaginacao(ordenados.length)
+  const visiveis = useMemo(
+    () => ordenados.slice(pag.inicio, pag.fim),
+    [ordenados, pag.inicio, pag.fim],
+  )
+
+  const contagensOrdenadas = useMemo(
+    () =>
+      ordenarPor(contagens, ordContagem, (c, chave) => {
+        if (chave === 'progresso') return contadosDe(c)
+        if (chave === 'divergencias') return divergenciasDe(c)
+        return undefined
+      }),
+    [contagens, ordContagem, contadosDe, divergenciasDe],
+  )
 
   const valorTotal = filtrados.reduce((soma, a) => soma + (a.valorAquisicao ?? 0), 0)
   const emManutencao = filtrados.filter((a) => a.status === 'Manutenção').length
@@ -226,9 +247,21 @@ export function InventarioPage() {
                   'Responsável',
                   'Ações',
                 ]}
+                chaves={[
+                  'id',
+                  'nome',
+                  'progresso',
+                  'divergencias',
+                  'status',
+                  'data',
+                  'responsavel',
+                  null,
+                ]}
+                ord={ordContagem}
+                aoOrdenar={ordenarContagem}
               />
               <tbody>
-                {contagens.map((c) => {
+                {contagensOrdenadas.map((c) => {
                   const contados = contadosDe(c)
                   const divergencias = divergenciasDe(c)
                   return (
@@ -335,9 +368,21 @@ export function InventarioPage() {
                   'Valor',
                   'Próx. manutenção',
                 ]}
+                chaves={[
+                  'codigo',
+                  'tombamento',
+                  'descricao',
+                  'setor',
+                  'responsavel',
+                  'status',
+                  'valorAquisicao',
+                  'proximaManutencao',
+                ]}
+                ord={ord}
+                aoOrdenar={ordenar}
               />
               <tbody>
-                {filtrados.map((a) => (
+                {visiveis.map((a) => (
                   <Linha key={a.codigo}>
                     <Celula className="font-mono text-xs font-semibold">{a.codigo}</Celula>
                     <Celula className="font-mono text-xs">{a.tombamento ?? '—'}</Celula>
@@ -362,6 +407,17 @@ export function InventarioPage() {
                 ))}
               </tbody>
             </Tabela>
+          )}
+
+          {filtrados.length > 0 && (
+            <Paginacao
+              pagina={pag.pagina}
+              totalPaginas={pag.totalPaginas}
+              totalItens={filtrados.length}
+              exibindoDe={pag.inicio + 1}
+              exibindoAte={pag.fim}
+              aoMudar={pag.setPagina}
+            />
           )}
 
           <p className="text-xs text-content-muted">

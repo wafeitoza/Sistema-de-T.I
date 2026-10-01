@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Pencil, Plus, QrCode, Search, Trash2 } from 'lucide-react'
 import { BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
@@ -6,10 +7,12 @@ import { TituloSecao } from '../../components/ui/Card'
 import { Selecao } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
+import { Paginacao } from '../../components/ui/Paginacao'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { SETORES, TIPOS_ATIVO } from '../../lib/codes'
 import { formatarData } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
+import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { useAtivosStore } from '../../store/ativos'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
@@ -24,7 +27,8 @@ export function AtivosPage() {
   const notificar = useUiStore((s) => s.notificar)
   const editar = podeEditar(usuario?.perfil ?? 'Visualizador')
 
-  const [busca, setBusca] = useState('')
+  const [params] = useSearchParams()
+  const [busca, setBusca] = useState(() => params.get('q') ?? '')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroSetor, setFiltroSetor] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
@@ -32,6 +36,14 @@ export function AtivosPage() {
   const [emEdicao, setEmEdicao] = useState<Ativo | null>(null)
   const [qrAtivo, setQrAtivo] = useState<Ativo | null>(null)
   const [paraDescartar, setParaDescartar] = useState<Ativo | null>(null)
+  const { ord, ordenar } = useOrdenacao('codigo')
+
+  const qDaUrl = params.get('q') ?? ''
+  const [qAnterior, setQAnterior] = useState(qDaUrl)
+  if (qDaUrl !== qAnterior) {
+    setQAnterior(qDaUrl)
+    if (qDaUrl) setBusca(qDaUrl)
+  }
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -49,6 +61,12 @@ export function AtivosPage() {
       )
     })
   }, [ativos, busca, filtroTipo, filtroSetor, filtroStatus])
+
+  const pag = usePaginacao(filtrados.length)
+  const visiveis = useMemo(
+    () => ordenarPor(filtrados, ord).slice(pag.inicio, pag.fim),
+    [filtrados, ord, pag.inicio, pag.fim],
+  )
 
   function confirmarDescarte() {
     if (!paraDescartar) return
@@ -145,9 +163,20 @@ export function AtivosPage() {
               'Próx. manutenção',
               'Ações',
             ]}
+            chaves={[
+              'codigo',
+              'descricao',
+              'setor',
+              'responsavel',
+              'status',
+              'proximaManutencao',
+              null,
+            ]}
+            ord={ord}
+            aoOrdenar={ordenar}
           />
           <tbody>
-            {filtrados.map((a) => (
+            {visiveis.map((a) => (
               <Linha key={a.codigo}>
                 <Celula className="font-mono text-xs font-semibold">{a.codigo}</Celula>
                 <Celula>
@@ -200,6 +229,17 @@ export function AtivosPage() {
             ))}
           </tbody>
         </Tabela>
+      )}
+
+      {filtrados.length > 0 && (
+        <Paginacao
+          pagina={pag.pagina}
+          totalPaginas={pag.totalPaginas}
+          totalItens={filtrados.length}
+          exibindoDe={pag.inicio + 1}
+          exibindoAte={pag.fim}
+          aoMudar={pag.setPagina}
+        />
       )}
 
       <p className="text-xs text-content-muted">

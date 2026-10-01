@@ -6,11 +6,13 @@ import { TituloSecao } from '../../components/ui/Card'
 import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
+import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { lerColecao } from '../../data/repository'
 import { diasAte, formatarData, parseMoeda } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
+import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { useAtivosStore } from '../../store/ativos'
 import { useAuthStore } from '../../store/auth'
 import { useManutencoesStore } from '../../store/manutencao'
@@ -42,6 +44,7 @@ export function ManutencaoPage() {
   const [erros, setErros] = useState<Record<string, string>>({})
   const [resultadoConclusao, setResultadoConclusao] = useState('OK')
   const [custo, setCusto] = useState('')
+  const { ord, ordenar } = useOrdenacao('dataAgendada')
 
   const usuarios = lerColecao<Usuario>('USUARIOS').filter((u) => u.status === 'Ativo')
   const ativosDisponiveis = ativos.filter((a) => a.status !== 'Descartado')
@@ -52,6 +55,12 @@ export function ManutencaoPage() {
         (m) => !filtro || m.status === filtro,
       ),
     [manutencoes, filtro],
+  )
+
+  const pag = usePaginacao(lista.length)
+  const visiveis = useMemo(
+    () => ordenarPor(lista, ord).slice(pag.inicio, pag.fim),
+    [lista, ord, pag.inicio, pag.fim],
   )
 
   const agendadas = manutencoes.filter((m) => m.status === 'Agendada')
@@ -174,9 +183,20 @@ export function ManutencaoPage() {
         <Tabela>
           <CabecalhoTabela
             colunas={['ID', 'Ativo', 'Tipo', 'Data agendada', 'Técnico', 'Status', 'Ações']}
+            chaves={[
+              'id',
+              'codigoAtivo',
+              'tipo',
+              'dataAgendada',
+              'tecnico',
+              'status',
+              null,
+            ]}
+            ord={ord}
+            aoOrdenar={ordenar}
           />
           <tbody>
-            {lista.map((m) => {
+            {visiveis.map((m) => {
               const dias = diasAte(m.dataAgendada)
               const atrasada =
                 dias !== null && dias < 0 && (m.status === 'Agendada' || m.status === 'Em Execução')
@@ -247,6 +267,17 @@ export function ManutencaoPage() {
             })}
           </tbody>
         </Tabela>
+      )}
+
+      {lista.length > 0 && (
+        <Paginacao
+          pagina={pag.pagina}
+          totalPaginas={pag.totalPaginas}
+          totalItens={lista.length}
+          exibindoDe={pag.inicio + 1}
+          exibindoAte={pag.fim}
+          aoMudar={pag.setPagina}
+        />
       )}
 
       <Modal

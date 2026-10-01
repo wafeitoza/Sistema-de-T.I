@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Menu, Moon, Sun } from 'lucide-react'
+import { Menu, Moon, Search, Sun } from 'lucide-react'
 import { saudacao } from '../../lib/format'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import { PrevisaoTempo } from './PrevisaoTempo'
 import { Relogio } from './Relogio'
+import { SinoNotificacoes } from './SinoNotificacoes'
 
 const TITULOS: Record<string, string> = {
   '/': 'Dashboard',
@@ -25,6 +26,7 @@ export function Header() {
   const tema = useUiStore((s) => s.tema)
   const alternarTema = useUiStore((s) => s.alternarTema)
   const alternarSidebar = useUiStore((s) => s.alternarSidebar)
+  const alternarBusca = useUiStore((s) => s.alternarBusca)
   const [agora, setAgora] = useState(() => new Date())
 
   useEffect(() => {
@@ -60,6 +62,18 @@ export function Header() {
       <div className="flex items-center gap-2">
         <PrevisaoTempo />
         <Relogio />
+        <button
+          onClick={alternarBusca}
+          className="hidden items-center gap-2 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs text-content-muted transition-colors hover:text-content sm:flex"
+          aria-label="Abrir busca global"
+        >
+          <Search size={14} />
+          <span>Buscar</span>
+          <kbd className="rounded border border-line bg-surface px-1 py-0.5 text-[10px] font-medium">
+            Ctrl K
+          </kbd>
+        </button>
+        <SinoNotificacoes />
         <button
           onClick={alternarTema}
           className="rounded-lg p-2 text-content-muted transition-all duration-200 hover:rotate-12 hover:bg-surface-2 hover:text-content hover:shadow-md active:scale-90"

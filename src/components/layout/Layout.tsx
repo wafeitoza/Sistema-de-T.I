@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { ShieldAlert } from 'lucide-react'
 import { podeAcessarRota } from '../../lib/permissions'
 import { useAuthStore } from '../../store/auth'
+import { BuscaGlobal } from './BuscaGlobal'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 
@@ -28,6 +29,7 @@ export function Layout() {
           </div>
         </main>
       </div>
+      <BuscaGlobal />
     </div>
   )
 }

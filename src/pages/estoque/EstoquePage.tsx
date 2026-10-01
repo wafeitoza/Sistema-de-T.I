@@ -13,11 +13,13 @@ import { TituloSecao } from '../../components/ui/Card'
 import { Selecao } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
+import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { CATEGORIAS_ESTOQUE } from '../../lib/codes'
 import { formatarMoeda } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
+import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { statusEstoque, useEstoqueStore } from '../../store/estoque'
 import { useAuthStore } from '../../store/auth'
 import type { ItemEstoque } from '../../types'
@@ -37,6 +39,7 @@ export function EstoquePage() {
     codigo?: string
   } | null>(null)
   const [historico, setHistorico] = useState<ItemEstoque | null>(null)
+  const { ord, ordenar } = useOrdenacao('codigo')
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -49,6 +52,17 @@ export function EstoquePage() {
       )
     })
   }, [itens, busca, categoria])
+
+  const pag = usePaginacao(filtrados.length)
+  const visiveis = useMemo(
+    () =>
+      ordenarPor(
+        filtrados,
+        ord,
+        (i, chave) => (chave === 'status' ? statusEstoque(i) : undefined),
+      ).slice(pag.inicio, pag.fim),
+    [filtrados, ord, pag.inicio, pag.fim],
+  )
 
   const valorTotal = itens.reduce(
     (soma, i) => soma + i.quantidade * (i.precoUnitario ?? 0),
@@ -164,9 +178,20 @@ export function EstoquePage() {
               'Fornecedor',
               'Ações',
             ]}
+            chaves={[
+              'codigo',
+              'descricao',
+              'quantidade',
+              'quantidadeMinima',
+              'status',
+              'fornecedor',
+              null,
+            ]}
+            ord={ord}
+            aoOrdenar={ordenar}
           />
           <tbody>
-            {filtrados.map((i) => {
+            {visiveis.map((i) => {
               const status = statusEstoque(i)
               return (
                 <Linha key={i.codigo}>
@@ -237,6 +262,17 @@ export function EstoquePage() {
             })}
           </tbody>
         </Tabela>
+      )}
+
+      {filtrados.length > 0 && (
+        <Paginacao
+          pagina={pag.pagina}
+          totalPaginas={pag.totalPaginas}
+          totalItens={filtrados.length}
+          exibindoDe={pag.inicio + 1}
+          exibindoAte={pag.fim}
+          aoMudar={pag.setPagina}
+        />
       )}
 
       <ItemEstoqueModal

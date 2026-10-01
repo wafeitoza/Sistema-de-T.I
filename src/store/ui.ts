@@ -22,8 +22,11 @@ interface UiState {
   tema: Tema
   toasts: Toast[]
   sidebarAberta: boolean
+  buscaAberta: boolean
   alternarTema: () => void
   alternarSidebar: () => void
+  alternarBusca: () => void
+  fecharBusca: () => void
   notificar: (tipo: TipoToast, mensagem: string) => void
   removerToast: (id: number) => void
 }
@@ -34,6 +37,7 @@ export const useUiStore = create<UiState>((set) => ({
   tema: temaInicial,
   toasts: [],
   sidebarAberta: false,
+  buscaAberta: false,
   alternarTema: () =>
     set((state) => {
       const tema: Tema = state.tema === 'claro' ? 'escuro' : 'claro'
@@ -42,6 +46,8 @@ export const useUiStore = create<UiState>((set) => ({
     }),
   alternarSidebar: () =>
     set((state) => ({ sidebarAberta: !state.sidebarAberta })),
+  alternarBusca: () => set((state) => ({ buscaAberta: !state.buscaAberta })),
+  fecharBusca: () => set({ buscaAberta: false }),
   notificar: (tipo, mensagem) => {
     const id = proximoId++
     set((state) => ({ toasts: [...state.toasts, { id, tipo, mensagem }] }))

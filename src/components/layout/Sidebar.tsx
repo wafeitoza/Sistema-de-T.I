@@ -1,37 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import {
-  Boxes,
-  ClipboardCheck,
-  ClipboardList,
-  LayoutDashboard,
-  LogOut,
-  Moon,
-  Package,
-  ScrollText,
-  Settings,
-  Sun,
-  Users,
-  Wrench,
-  X,
-} from 'lucide-react'
+import { Boxes, LogOut, Moon, Sun, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { podeAcessarRota } from '../../lib/permissions'
+import { ROTAS_NAVEGACAO } from '../../lib/rotas'
 import { Avatar } from '../ui/Avatar'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import type { Perfil } from '../../types'
-
-const LINKS = [
-  { para: '/', rotulo: 'Dashboard', icone: LayoutDashboard },
-  { para: '/ativos', rotulo: 'Ativos', icone: Boxes },
-  { para: '/estoque', rotulo: 'Estoque', icone: Package },
-  { para: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck },
-  { para: '/solicitacoes', rotulo: 'Solicitações', icone: ClipboardList },
-  { para: '/manutencao', rotulo: 'Manutenção', icone: Wrench },
-  { para: '/usuarios', rotulo: 'Usuários', icone: Users },
-  { para: '/auditoria', rotulo: 'Auditoria', icone: ScrollText },
-  { para: '/config', rotulo: 'Configurações', icone: Settings },
-]
 
 export function Sidebar() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -66,7 +41,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {LINKS.filter((l) => podeAcessarRota(l.para, perfil)).map((l) => (
+        {ROTAS_NAVEGACAO.filter((l) => podeAcessarRota(l.para, perfil)).map((l) => (
           <NavLink
             key={l.para}
             to={l.para}

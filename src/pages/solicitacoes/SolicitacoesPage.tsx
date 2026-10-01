@@ -15,9 +15,11 @@ import { TituloSecao } from '../../components/ui/Card'
 import { AreaTexto } from '../../components/ui/Campos'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
+import { Paginacao } from '../../components/ui/Paginacao'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { montarLinkAprovacao } from '../../lib/token'
 import { podeCriarSolicitacao } from '../../lib/permissions'
+import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { useAuthStore } from '../../store/auth'
 import { useSolicitacoesStore } from '../../store/solicitacoes'
 import { useUiStore } from '../../store/ui'
@@ -54,12 +56,17 @@ export function SolicitacoesPage() {
   const [linkEnvio, setLinkEnvio] = useState<{ id: string; link: string } | null>(null)
   const [paraRejeitar, setParaRejeitar] = useState<Solicitacao | null>(null)
   const [motivo, setMotivo] = useState('')
+  const { ord, ordenar } = useOrdenacao('id')
 
   const lista = solicitacoes.filter((s) => aba === 'Todas' || s.status === aba)
   const contar = (status: Aba) =>
     status === 'Todas'
       ? solicitacoes.length
       : solicitacoes.filter((s) => s.status === status).length
+
+  const ordenados = ordenarPor(lista, ord)
+  const pag = usePaginacao(ordenados.length)
+  const visiveis = ordenados.slice(pag.inicio, pag.fim)
 
   function aoEnviar(id: string) {
     const resultado = enviar(id)
@@ -169,9 +176,20 @@ export function SolicitacoesPage() {
               'Status',
               'Ações',
             ]}
+            chaves={[
+              'id',
+              'tipo',
+              'descricao',
+              'prioridade',
+              'solicitante',
+              'status',
+              null,
+            ]}
+            ord={ord}
+            aoOrdenar={ordenar}
           />
           <tbody>
-            {lista.map((s) => (
+            {visiveis.map((s) => (
               <Linha key={s.id}>
                 <Celula className="whitespace-nowrap font-mono text-xs font-semibold">
                   {s.id}
@@ -262,6 +280,17 @@ export function SolicitacoesPage() {
             ))}
           </tbody>
         </Tabela>
+      )}
+
+      {lista.length > 0 && (
+        <Paginacao
+          pagina={pag.pagina}
+          totalPaginas={pag.totalPaginas}
+          totalItens={lista.length}
+          exibindoDe={pag.inicio + 1}
+          exibindoAte={pag.fim}
+          aoMudar={pag.setPagina}
+        />
       )}
 
       <SolicitacaoFormModal

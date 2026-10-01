@@ -11,6 +11,7 @@ export const ACESSO_ROTA: Record<string, Perfil[]> = {
   '/inventario': TODOS,
   '/manutencao': TODOS,
   '/solicitacoes': ['Admin', 'Gerente'],
+  '/termos': ['Admin', 'Gerente', 'Técnico'],
   '/relatorios': ['Admin', 'Gerente', 'Visualizador'],
   '/usuarios': ['Admin'],
   '/auditoria': ['Admin', 'Gerente'],

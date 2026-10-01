@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Pencil, Plus, QrCode, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, QrCode, Search, Tags, Trash2 } from 'lucide-react'
 import { BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import type { Ativo, StatusAtivo } from '../../types'
 import { AtivoFormModal } from './AtivoFormModal'
+import { EtiquetasModal } from './EtiquetasModal'
 
 const STATUS_ATIVO: StatusAtivo[] = ['Ativo', 'Inativo', 'Manutenção', 'Descartado']
 
@@ -36,6 +37,7 @@ export function AtivosPage() {
   const [emEdicao, setEmEdicao] = useState<Ativo | null>(null)
   const [qrAtivo, setQrAtivo] = useState<Ativo | null>(null)
   const [paraDescartar, setParaDescartar] = useState<Ativo | null>(null)
+  const [etiquetas, setEtiquetas] = useState(false)
   const { ord, ordenar } = useOrdenacao('codigo')
 
   const qDaUrl = params.get('q') ?? ''
@@ -79,16 +81,21 @@ export function AtivosPage() {
     <div className="space-y-5">
       <TituloSecao
         acao={
-          editar ? (
-            <Botao
-              onClick={() => {
-                setEmEdicao(null)
-                setModalForm(true)
-              }}
-            >
-              <Plus size={16} /> Novo ativo
+          <div className="flex items-center gap-2">
+            <Botao variante="secundario" onClick={() => setEtiquetas(true)}>
+              <Tags size={16} /> Etiquetas
             </Botao>
-          ) : null
+            {editar && (
+              <Botao
+                onClick={() => {
+                  setEmEdicao(null)
+                  setModalForm(true)
+                }}
+              >
+                <Plus size={16} /> Novo ativo
+              </Botao>
+            )}
+          </div>
         }
       >
         Ativos
@@ -289,6 +296,12 @@ export function AtivosPage() {
           </div>
         )}
       </Modal>
+
+      <EtiquetasModal
+        aberto={etiquetas}
+        aoFechar={() => setEtiquetas(false)}
+        ativos={ativos}
+      />
 
       <Modal
         aberto={!!paraDescartar}

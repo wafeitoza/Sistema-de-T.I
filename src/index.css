@@ -465,3 +465,48 @@
     padding: 0 !important;
   }
 }
+
+/* Impressão de etiquetas — esconde a aplicação e imprime só a folha. */
+@media print {
+  #root {
+    display: none !important;
+  }
+
+  body.imprimindo-etiquetas .etiqueta-overlay,
+  body.imprimindo-etiquetas .etiqueta-topo,
+  body.imprimindo-etiquetas .etiqueta-base,
+  body.imprimindo-etiquetas .etiqueta-seletor {
+    display: none !important;
+  }
+
+  body.imprimindo-etiquetas .etiqueta-caixa {
+    position: static !important;
+    display: block !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+  }
+
+  body.imprimindo-etiquetas .etiqueta-corpo {
+    overflow: visible !important;
+    max-height: none !important;
+    padding: 0 !important;
+  }
+
+  body.imprimindo-etiquetas .folha-etiquetas {
+    position: static !important;
+    background: #fff !important;
+  }
+
+  body.imprimindo-etiquetas * {
+    visibility: hidden !important;
+  }
+
+  body.imprimindo-etiquetas .folha-etiquetas,
+  body.imprimindo-etiquetas .folha-etiquetas * {
+    visibility: visible !important;
+  }
+}

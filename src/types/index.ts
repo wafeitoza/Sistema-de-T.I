@@ -152,6 +152,23 @@ export interface Manutencao {
   atualizadoEm: string
 }
 
+export type StatusTermo = 'Pendente' | 'Assinado' | 'Revogado'
+
+export interface Termo {
+  id: string
+  ativoCodigo: string
+  responsavel: string
+  conteudo: string
+  hash: string
+  status: StatusTermo
+  criadoEm: string
+  criadoPor: string
+  assinadoEm?: string
+  assinadoPor?: string
+  revogadoEm?: string
+  revogadoPor?: string
+}
+
 export type AcaoLog =
   | 'CREATE'
   | 'UPDATE'

@@ -12,9 +12,10 @@ export const COLECOES_BACKUP = [
   'MANUTENCOES',
   'CONTAGENS',
   'LOG',
+  'TERMOS',
 ] as const
 
-const SEQUENCIAS_BACKUP = ['EDD', 'INV', 'LOG', 'MAN', 'SAD', 'SOL'] as const
+const SEQUENCIAS_BACKUP = ['EDD', 'INV', 'LOG', 'MAN', 'SAD', 'SOL', 'TERM'] as const
 
 const COLECOES_ESSENCIAIS = ['USUARIOS', 'ATIVOS', 'ESTOQUE']
 

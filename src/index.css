@@ -9,15 +9,27 @@
   --content: #0f172a;
   --content-muted: #64748b;
   --border: #e2e8f0;
+  --sombra-card:
+    0 1px 2px rgb(15 23 42 / 0.04), 0 10px 30px -18px rgb(15 23 42 / 0.18);
+  --sombra-card-hover:
+    0 2px 4px rgb(15 23 42 / 0.06), 0 22px 45px -20px rgb(0 122 255 / 0.35);
 }
 
+/* Modo noturno — preto piano (corpo em preto puro, painéis levemente
+   elevados e brilho sutil na borda superior, como um lacaado). */
 .dark {
-  --surface: #0f172a;
-  --surface-2: #0b1220;
-  --surface-3: #1e293b;
-  --content: #f1f5f9;
-  --content-muted: #94a3b8;
-  --border: #1e293b;
+  --surface: #0d0d0d;
+  --surface-2: #000000;
+  --surface-3: #1a1a1a;
+  --content: #f5f5f5;
+  --content-muted: #a3a3a3;
+  --border: #262626;
+  --sombra-card:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 16px 36px -24px rgb(0 0 0 / 0.95);
+  --sombra-card-hover:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 28px 54px -26px rgb(0 122 255 / 0.5);
 }
 
 @theme inline {
@@ -42,9 +54,8 @@
   --font-mono:
     'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 30px -18px rgb(15 23 42 / 0.18);
-  --shadow-card-hover:
-    0 2px 4px rgb(15 23 42 / 0.06), 0 22px 45px -20px rgb(0 122 255 / 0.35);
+  --shadow-card: var(--sombra-card);
+  --shadow-card-hover: var(--sombra-card-hover);
   --shadow-glow: 0 8px 30px -8px rgb(0 122 255 / 0.45);
 }
 

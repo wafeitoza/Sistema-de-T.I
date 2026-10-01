@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type CSSProperties, type MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Boxes, ChevronRight, ShieldCheck } from 'lucide-react'
 import { lerColecao } from '../data/repository'
@@ -11,6 +11,18 @@ const CORES_PERFIL: Record<string, string> = {
   Gerente: 'bg-warning/15 text-warning',
   Técnico: 'bg-primary/15 text-primary',
   Visualizador: 'bg-info/15 text-info',
+}
+
+const SEM_PARALLAX =
+  typeof window !== 'undefined' &&
+  !window.matchMedia('(prefers-reduced-motion: no-preference)').matches
+
+function aoMover(e: MouseEvent<HTMLDivElement>) {
+  if (SEM_PARALLAX) return
+  const x = e.clientX / window.innerWidth - 0.5
+  const y = e.clientY / window.innerHeight - 0.5
+  e.currentTarget.style.setProperty('--px', `${(-x * 16).toFixed(1)}px`)
+  e.currentTarget.style.setProperty('--py', `${(-y * 12).toFixed(1)}px`)
 }
 
 export function LoginPage() {
@@ -28,43 +40,49 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
-      <div
-        className="blob"
-        style={{
-          width: 440,
-          height: 440,
-          top: '-10rem',
-          left: '-7rem',
-          background: 'linear-gradient(135deg, #007aff, #5ac8fa)',
-        }}
-        aria-hidden
-      />
-      <div
-        className="blob"
-        style={{
-          width: 380,
-          height: 380,
-          bottom: '-8rem',
-          right: '-6rem',
-          background: 'linear-gradient(135deg, #34c759, #5ac8fa)',
-          animationDelay: '-7s',
-        }}
-        aria-hidden
-      />
-      <div
-        className="blob"
-        style={{
-          width: 280,
-          height: 280,
-          top: '42%',
-          right: '14%',
-          background: 'linear-gradient(135deg, #ff9500, #ff3b30)',
-          animationDelay: '-11s',
-          opacity: 0.25,
-        }}
-        aria-hidden
-      />
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden p-4"
+      onMouseMove={aoMover}
+      style={{ '--px': '0px', '--py': '0px' } as CSSProperties}
+    >
+      <div className="fundo-camada anim-fade-in" aria-hidden>
+        <div className="aurora-login" />
+        <div className="grade-login" />
+        <div
+          className="blob"
+          style={{
+            width: 440,
+            height: 440,
+            top: '-10rem',
+            left: '-7rem',
+            background: 'linear-gradient(135deg, #007aff, #5ac8fa)',
+          }}
+        />
+        <div
+          className="blob"
+          style={{
+            width: 380,
+            height: 380,
+            bottom: '-8rem',
+            right: '-6rem',
+            background: 'linear-gradient(135deg, #34c759, #5ac8fa)',
+            animationDelay: '-7s',
+          }}
+        />
+        <div
+          className="blob"
+          style={{
+            width: 280,
+            height: 280,
+            top: '42%',
+            right: '14%',
+            background: 'linear-gradient(135deg, #ff9500, #ff3b30)',
+            animationDelay: '-11s',
+            opacity: 0.25,
+          }}
+        />
+        <div className="feixe-login" />
+      </div>
 
       <div className="relative w-full max-w-md">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">

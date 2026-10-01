@@ -342,6 +342,91 @@
     opacity: 0.4;
   }
 
+  .fundo-camada {
+    position: absolute;
+    inset: 0;
+    transform: translate3d(var(--px, 0px), var(--py, 0px), 0);
+    transition: transform 0.45s ease-out;
+    pointer-events: none;
+  }
+
+  .aurora-login {
+    position: absolute;
+    inset: -18%;
+    filter: blur(30px);
+    background:
+      radial-gradient(38% 46% at 22% 28%, rgb(0 122 255 / 0.2), transparent 65%),
+      radial-gradient(42% 50% at 78% 72%, rgb(52 199 89 / 0.15), transparent 65%),
+      radial-gradient(34% 42% at 64% 16%, rgb(255 149 0 / 0.13), transparent 65%),
+      radial-gradient(30% 40% at 28% 78%, rgb(90 200 250 / 0.16), transparent 65%);
+    animation: aurora 22s ease-in-out infinite alternate;
+  }
+
+  .grade-login {
+    position: absolute;
+    inset: -60px;
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--content) 8%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--content) 8%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(ellipse 72% 62% at 50% 42%, #000 25%, transparent 78%);
+    mask-image: radial-gradient(ellipse 72% 62% at 50% 42%, #000 25%, transparent 78%);
+    animation: grade-desliza 35s linear infinite;
+  }
+
+  .feixe-login {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      115deg,
+      transparent 40%,
+      rgb(255 255 255 / 0.55) 50%,
+      transparent 60%
+    );
+    opacity: 0.6;
+    transform: translateX(-130%);
+    animation: feixe 11s ease-in-out infinite;
+  }
+
+  @keyframes aurora {
+    0% {
+      transform: rotate(0deg) scale(1) translate(0, 0);
+    }
+    50% {
+      transform: rotate(4deg) scale(1.06) translate(2%, -1.5%);
+    }
+    100% {
+      transform: rotate(-4deg) scale(1.04) translate(-2%, 1.5%);
+    }
+  }
+
+  @keyframes grade-desliza {
+    from {
+      background-position: 0 0, 0 0;
+    }
+    to {
+      background-position: 46px 46px, 46px 46px;
+    }
+  }
+
+  @keyframes feixe {
+    0%,
+    55% {
+      transform: translateX(-130%);
+    }
+    100% {
+      transform: translateX(130%);
+    }
+  }
+
   /* ---------- Tabelas ---------- */
   .tabela-animada tbody tr {
     animation: fade-up 0.35s ease both;

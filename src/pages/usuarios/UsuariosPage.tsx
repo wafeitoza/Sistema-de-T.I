@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Pencil, Search } from 'lucide-react'
+import { Pencil, Plus, Search } from 'lucide-react'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
@@ -11,6 +11,7 @@ import { CabecalhoTabela, Celula, Linha, Tabela } from '../../components/ui/Tabe
 import { gravarColecao, lerColecao } from '../../data/repository'
 import { calcularDiff, registrarLog } from '../../lib/audit'
 import { TODOS_PERFIS } from '../../lib/permissions'
+import { validarEmail } from '../../lib/validation'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import type { Perfil, Usuario } from '../../types'
@@ -23,6 +24,8 @@ const TOM_PERFIL: Record<Perfil, 'primary' | 'info' | 'success' | 'neutral'> = {
 }
 
 const STATUS_USUARIO = ['Ativo', 'Inativo'] as const
+
+type AlvoModal = 'criar' | Usuario | null
 
 function iniciais(nome: string): string {
   return nome
@@ -42,17 +45,20 @@ export function UsuariosPage() {
     lerColecao<Usuario>('USUARIOS'),
   )
   const [busca, setBusca] = useState('')
-  const [editando, setEditando] = useState<Usuario | null>(null)
+  const [alvo, setAlvo] = useState<AlvoModal>(null)
   const [erros, setErros] = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     nome: '',
+    email: '',
     setor: '',
     telefone: '',
     perfil: 'Visualizador' as Perfil,
     status: 'Ativo' as 'Ativo' | 'Inativo',
   })
 
-  const proprio = !!usuario && !!editando && editando.email === usuario.email
+  const editando = alvo !== null && alvo !== 'criar' ? alvo : null
+  const criando = alvo === 'criar'
+  const proprio = !!editando && !!usuario && editando.email === usuario.email
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -68,10 +74,11 @@ export function UsuariosPage() {
   const admins = usuarios.filter((u) => u.perfil === 'Admin').length
 
   function abrir(u: Usuario) {
-    setEditando(u)
+    setAlvo(u)
     setErros({})
     setForm({
       nome: u.nome,
+      email: u.email,
       setor: u.setor,
       telefone: u.telefone ?? '',
       perfil: u.perfil,
@@ -79,23 +86,69 @@ export function UsuariosPage() {
     })
   }
 
+  function abrirCriar() {
+    setAlvo('criar')
+    setErros({})
+    setForm({
+      nome: '',
+      email: '',
+      setor: '',
+      telefone: '',
+      perfil: 'Visualizador',
+      status: 'Ativo',
+    })
+  }
+
   function fechar() {
-    setEditando(null)
+    setAlvo(null)
     setErros({})
   }
 
   function salvar() {
-    if (!editando) return
+    if (alvo === null) return
+    const lista = lerColecao<Usuario>('USUARIOS')
     const novosErros: Record<string, string> = {}
+
     if (!form.nome.trim()) novosErros.nome = 'Nome é obrigatório'
     if (!form.setor.trim()) novosErros.setor = 'Setor é obrigatório'
+
+    const email = form.email.trim().toLowerCase()
+    if (criando) {
+      if (!email) novosErros.email = 'E-mail é obrigatório'
+      else if (!validarEmail(email)) novosErros.email = 'E-mail inválido'
+      else if (lista.some((u) => u.email === email))
+        novosErros.email = 'E-mail já cadastrado'
+    }
+
     if (Object.keys(novosErros).length) {
       setErros(novosErros)
       return
     }
 
-    const lista = lerColecao<Usuario>('USUARIOS')
-    const antes = lista.find((u) => u.email === editando.email)
+    if (alvo === 'criar') {
+      const novo: Usuario = {
+        email,
+        nome: form.nome.trim(),
+        perfil: form.perfil,
+        setor: form.setor.trim(),
+        status: form.status,
+        telefone: form.telefone.trim() || undefined,
+      }
+      gravarColecao('USUARIOS', [...lista, novo])
+      registrarLog({
+        usuario: usuario?.email ?? 'desconhecido',
+        acao: 'CREATE',
+        tabela: 'USUARIOS',
+        registroId: novo.email,
+        mensagem: `Usuário ${novo.nome} criado`,
+      })
+      setUsuarios((atuais) => [...atuais, novo])
+      notificar('sucesso', `Usuário ${novo.nome} criado com sucesso`)
+      fechar()
+      return
+    }
+
+    const antes = lista.find((u) => u.email === alvo.email)
     if (!antes) return
 
     const depois: Usuario = {
@@ -124,14 +177,24 @@ export function UsuariosPage() {
       mensagem: `Perfil de ${depois.nome} atualizado`,
     })
     if (proprio) atualizarSessao(depois)
-    setUsuarios((atuais) => atuais.map((u) => (u.email === antes.email ? depois : u)))
+    setUsuarios((atuais) =>
+      atuais.map((u) => (u.email === antes.email ? depois : u)),
+    )
     notificar('sucesso', `Perfil de ${depois.nome} atualizado com sucesso`)
     fechar()
   }
 
   return (
     <div className="space-y-5">
-      <TituloSecao>Usuários</TituloSecao>
+      <TituloSecao
+        acao={
+          <Botao onClick={abrirCriar}>
+            <Plus size={16} /> Novo usuário
+          </Botao>
+        }
+      >
+        Usuários
+      </TituloSecao>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Resumo titulo="Usuários" valor={usuarios.length} />
@@ -212,19 +275,28 @@ export function UsuariosPage() {
         <EstadoVazio
           titulo="Nenhum usuário encontrado"
           mensagem="Ajuste a busca para encontrar o usuário desejado."
+          acao={
+            <Botao onClick={abrirCriar}>
+              <Plus size={16} /> Novo usuário
+            </Botao>
+          }
         />
       )}
 
       <Modal
-        aberto={!!editando}
+        aberto={alvo !== null}
         aoFechar={fechar}
-        titulo={`Editar perfil — ${editando?.nome ?? ''}`}
+        titulo={
+          criando
+            ? 'Novo usuário'
+            : `Editar perfil — ${editando?.nome ?? ''}`
+        }
         rodape={
           <>
             <Botao variante="secundario" onClick={fechar}>
               Cancelar
             </Botao>
-            <Botao onClick={salvar}>Salvar</Botao>
+            <Botao onClick={salvar}>{criando ? 'Criar usuário' : 'Salvar'}</Botao>
           </>
         }
       >
@@ -234,12 +306,17 @@ export function UsuariosPage() {
             value={form.nome}
             erro={erros.nome}
             onChange={(e) => setForm({ ...form, nome: e.target.value })}
+            placeholder="Maria Silva"
             className="sm:col-span-2"
           />
           <Entrada
-            label="E-mail"
-            value={editando?.email ?? ''}
-            disabled
+            label={criando ? 'E-mail *' : 'E-mail'}
+            type="email"
+            value={form.email}
+            erro={erros.email}
+            disabled={!criando}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="nome@empresa.com"
             className="sm:col-span-2"
           />
           <Entrada
@@ -247,6 +324,7 @@ export function UsuariosPage() {
             value={form.setor}
             erro={erros.setor}
             onChange={(e) => setForm({ ...form, setor: e.target.value })}
+            placeholder="TI"
           />
           <Entrada
             label="Telefone"

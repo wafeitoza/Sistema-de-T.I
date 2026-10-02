@@ -132,6 +132,23 @@ async function buscarNomeLocal(lat: number, lon: number, fallback: string) {
   }
 }
 
+function iconePrevisao(erro: boolean, dados: Dados | null) {
+  const Componente = erro
+    ? CloudOff
+    : dados
+      ? icone(dados.codigo, dados.dia)
+      : CloudSun
+  return (
+    <Componente
+      size={19}
+      className={cn(
+        'transition-colors duration-300',
+        erro ? 'text-content-muted' : corPorCodigo(dados?.codigo ?? 2),
+      )}
+    />
+  )
+}
+
 export function PrevisaoTempo() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(false)
@@ -190,7 +207,6 @@ export function PrevisaoTempo() {
       )
     }
 
-    setCarregando(true)
     iniciar()
     const intervalo = setInterval(iniciar, 15 * 60 * 1000)
 
@@ -206,12 +222,6 @@ export function PrevisaoTempo() {
     : dados
       ? `${texto} · Máx ${dados.max}° / Mín ${dados.min}° · ${dados.local}`
       : 'Carregando previsão do tempo…'
-
-  const Icone = erro
-    ? CloudOff
-    : dados
-      ? icone(dados.codigo, dados.dia)
-      : CloudSun
 
   return (
     <button
@@ -231,13 +241,7 @@ export function PrevisaoTempo() {
       {carregando ? (
         <Loader2 size={19} className="animate-spin text-content-muted" />
       ) : (
-        <Icone
-          size={19}
-          className={cn(
-            'transition-colors duration-300',
-            erro ? 'text-content-muted' : corPorCodigo(dados?.codigo ?? 2),
-          )}
-        />
+        iconePrevisao(erro, dados)
       )}
       <div className="flex flex-col items-start leading-none">
         <span className="num text-sm font-extrabold text-content">

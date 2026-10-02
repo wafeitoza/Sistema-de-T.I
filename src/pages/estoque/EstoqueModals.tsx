@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Botao } from '../../components/ui/Botao'
 import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { Modal } from '../../components/ui/Modal'
@@ -54,31 +54,34 @@ export function ItemEstoqueModal({
   const opcoesFornecedor = montarOpcoesFornecedor(fornecedoresStore, form.fornecedor)
   const [erros, setErros] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    if (!aberto) return
-    setErros({})
-    setForm(
-      item
-        ? {
-            descricao: item.descricao,
-            categoria: item.categoria,
-            quantidadeMinima: String(item.quantidadeMinima),
-            unidade: item.unidade,
-            fornecedor: item.fornecedor ?? '',
-            precoUnitario: formatarNumeroBR(item.precoUnitario),
-            notas: item.notas ?? '',
-          }
-        : {
-            descricao: '',
-            categoria: '',
-            quantidadeMinima: '5',
-            unidade: 'Peça',
-            fornecedor: '',
-            precoUnitario: '',
-            notas: '',
-          },
-    )
-  }, [aberto, item])
+  const [abertoAnterior, setAbertoAnterior] = useState(aberto)
+  if (aberto !== abertoAnterior) {
+    setAbertoAnterior(aberto)
+    if (aberto) {
+      setErros({})
+      setForm(
+        item
+          ? {
+              descricao: item.descricao,
+              categoria: item.categoria,
+              quantidadeMinima: String(item.quantidadeMinima),
+              unidade: item.unidade,
+              fornecedor: item.fornecedor ?? '',
+              precoUnitario: formatarNumeroBR(item.precoUnitario),
+              notas: item.notas ?? '',
+            }
+          : {
+              descricao: '',
+              categoria: '',
+              quantidadeMinima: '5',
+              unidade: 'Peça',
+              fornecedor: '',
+              precoUnitario: '',
+              notas: '',
+            },
+      )
+    }
+  }
 
   function salvar() {
     const novosErros: Record<string, string> = {}
@@ -210,20 +213,23 @@ export function MovimentoModal({
   const opcoesFornecedor = montarOpcoesFornecedor(fornecedoresStore, form.fornecedor)
   const [erro, setErro] = useState('')
 
-  useEffect(() => {
-    if (!aberto) return
-    setErro('')
-    setForm({
-      codigoItem: codigoInicial ?? '',
-      quantidade: '1',
-      tipoMovimento: tipo === 'entrada' ? 'Compra' : 'Fornecimento',
-      fornecedor: '',
-      nf: '',
-      responsavel: '',
-      motivo: '',
-      notas: '',
-    })
-  }, [aberto, tipo, codigoInicial])
+  const [abertoAnterior, setAbertoAnterior] = useState(aberto)
+  if (aberto !== abertoAnterior) {
+    setAbertoAnterior(aberto)
+    if (aberto) {
+      setErro('')
+      setForm({
+        codigoItem: codigoInicial ?? '',
+        quantidade: '1',
+        tipoMovimento: tipo === 'entrada' ? 'Compra' : 'Fornecimento',
+        fornecedor: '',
+        nf: '',
+        responsavel: '',
+        motivo: '',
+        notas: '',
+      })
+    }
+  }
 
   function salvar() {
     const quantidade = Number(form.quantidade)

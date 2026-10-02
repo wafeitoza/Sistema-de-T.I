@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { lerColecao } from '../../data/repository'
 import { Botao } from '../../components/ui/Botao'
 import { AreaTexto, Selecao } from '../../components/ui/Campos'
@@ -47,27 +47,30 @@ export function SolicitacaoFormModal({
   })
   const [erros, setErros] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    if (!aberto) return
-    setErros({})
-    setForm(
-      solicitacao
-        ? {
-            tipo: solicitacao.tipo,
-            descricao: solicitacao.descricao,
-            prioridade: solicitacao.prioridade,
-            aprovador: solicitacao.aprovador,
-            notasInternas: solicitacao.notasInternas ?? '',
-          }
-        : {
-            tipo: 'Novo Ativo',
-            descricao: '',
-            prioridade: 'Normal',
-            aprovador: opcoesAprovador[0]?.valor ?? '',
-            notasInternas: '',
-          },
-    )
-  }, [aberto, solicitacao])
+  const [abertoAnterior, setAbertoAnterior] = useState(aberto)
+  if (aberto !== abertoAnterior) {
+    setAbertoAnterior(aberto)
+    if (aberto) {
+      setErros({})
+      setForm(
+        solicitacao
+          ? {
+              tipo: solicitacao.tipo,
+              descricao: solicitacao.descricao,
+              prioridade: solicitacao.prioridade,
+              aprovador: solicitacao.aprovador,
+              notasInternas: solicitacao.notasInternas ?? '',
+            }
+          : {
+              tipo: 'Novo Ativo',
+              descricao: '',
+              prioridade: 'Normal',
+              aprovador: opcoesAprovador[0]?.valor ?? '',
+              notasInternas: '',
+            },
+      )
+    }
+  }
 
   function salvar() {
     const novosErros: Record<string, string> = {}

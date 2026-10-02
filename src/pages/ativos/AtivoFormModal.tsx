@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Botao } from '../../components/ui/Botao'
 import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { Modal } from '../../components/ui/Modal'
@@ -62,28 +62,31 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
     return opcoes
   }, [setoresStore, form.setor])
 
-  useEffect(() => {
-    if (!aberto) return
-    setErros({})
-    setForm(
-      ativo
-        ? {
-            descricao: ativo.descricao,
-            tipo: ativo.tipo,
-            marca: ativo.marca ?? '',
-            modelo: ativo.modelo ?? '',
-            serial: ativo.serial ?? '',
-            tombamento: ativo.tombamento ?? '',
-            setor: ativo.setor,
-            responsavel: ativo.responsavel,
-            dataAquisicao: ativo.dataAquisicao,
-            valorAquisicao: formatarNumeroBR(ativo.valorAquisicao),
-            localizacao: ativo.localizacao ?? '',
-            notas: ativo.notas ?? '',
-          }
-        : VAZIO,
-    )
-  }, [aberto, ativo])
+  const [abertoAnterior, setAbertoAnterior] = useState(aberto)
+  if (aberto !== abertoAnterior) {
+    setAbertoAnterior(aberto)
+    if (aberto) {
+      setErros({})
+      setForm(
+        ativo
+          ? {
+              descricao: ativo.descricao,
+              tipo: ativo.tipo,
+              marca: ativo.marca ?? '',
+              modelo: ativo.modelo ?? '',
+              serial: ativo.serial ?? '',
+              tombamento: ativo.tombamento ?? '',
+              setor: ativo.setor,
+              responsavel: ativo.responsavel,
+              dataAquisicao: ativo.dataAquisicao,
+              valorAquisicao: formatarNumeroBR(ativo.valorAquisicao),
+              localizacao: ativo.localizacao ?? '',
+              notas: ativo.notas ?? '',
+            }
+          : VAZIO,
+      )
+    }
+  }
 
   function campo<K extends keyof Formulario>(nome: K, valor: Formulario[K]) {
     setForm((f) => ({ ...f, [nome]: valor }))

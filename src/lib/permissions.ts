@@ -33,7 +33,3 @@ export function podeEditar(perfil: Perfil): boolean {
 export function podeCriarSolicitacao(perfil: Perfil): boolean {
   return perfil === 'Admin' || perfil === 'Gerente'
 }
-
-export function podeAprovar(perfil: Perfil): boolean {
-  return perfil === 'Admin' || perfil === 'Gerente'
-}

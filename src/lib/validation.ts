@@ -1,6 +1,5 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const DATA_RE = /^\d{2}\/\d{2}\/\d{4}$/
-const CODIGO_RE = /^[A-Z]{3,4}-\d{3}$/
 
 export function validarEmail(email: string): boolean {
   return EMAIL_RE.test(email.trim())
@@ -13,14 +12,6 @@ export function validarData(data: string): boolean {
   return (
     d.getFullYear() === ano && d.getMonth() === mes - 1 && d.getDate() === dia
   )
-}
-
-export function validarCodigoAtivo(codigo: string): boolean {
-  return CODIGO_RE.test(codigo.trim())
-}
-
-export function validarNumeroPositivo(valor: number): boolean {
-  return Number.isFinite(valor) && valor > 0
 }
 
 export function obrigatorio(valor: string | undefined): boolean {

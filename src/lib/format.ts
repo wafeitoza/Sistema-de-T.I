@@ -38,6 +38,7 @@ export function dataBRparaDate(dataBR: string): Date | null {
 export function diasAte(dataBR: string): number | null {
   const alvo = dataBRparaDate(dataBR)
   if (!alvo) return null
+  alvo.setHours(0, 0, 0, 0)
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
   return Math.round((alvo.getTime() - hoje.getTime()) / 86_400_000)

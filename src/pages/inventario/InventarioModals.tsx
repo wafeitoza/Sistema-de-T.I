@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AlertTriangle, Check, Minus } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
@@ -24,12 +24,15 @@ export function NovaContagemModal({
   const [selecionados, setSelecionados] = useState<string[]>([])
   const [erro, setErro] = useState('')
 
-  useEffect(() => {
-    if (!aberto) return
-    setNome('')
-    setErro('')
-    setSelecionados(itens.map((i) => i.codigo))
-  }, [aberto, itens])
+  const [abertoAnterior, setAbertoAnterior] = useState(aberto)
+  if (aberto !== abertoAnterior) {
+    setAbertoAnterior(aberto)
+    if (aberto) {
+      setNome('')
+      setErro('')
+      setSelecionados(itens.map((i) => i.codigo))
+    }
+  }
 
   function alternar(codigo: string) {
     setSelecionados((atual) =>
@@ -151,14 +154,19 @@ export function ContagemDetalheModal({
 
   const aberta = contagem?.status === 'Em andamento'
 
-  useEffect(() => {
-    if (!aberto || !contagem) return
-    setConfirmar(false)
-    setErro('')
-    setRascunhos(
-      Object.fromEntries(contagem.itens.map((i) => [i.codigoItem, i.contado === null ? '' : String(i.contado)])),
-    )
-  }, [aberto, contagem?.id])
+  const [abertoAnterior, setAbertoAnterior] = useState(aberto)
+  if (aberto !== abertoAnterior) {
+    setAbertoAnterior(aberto)
+    if (aberto && contagem) {
+      setConfirmar(false)
+      setErro('')
+      setRascunhos(
+        Object.fromEntries(
+          contagem.itens.map((i) => [i.codigoItem, i.contado === null ? '' : String(i.contado)]),
+        ),
+      )
+    }
+  }
 
   const linhas = useMemo(() => {
     if (!contagem) return []

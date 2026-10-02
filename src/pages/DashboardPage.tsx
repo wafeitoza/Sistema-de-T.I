@@ -160,14 +160,14 @@ export function DashboardPage() {
   const logs = lerColecao<LogEntrada>('LOG').slice(0, 7)
   const verSolicitacoes = usuario && podeAcessarRota('/solicitacoes', usuario.perfil)
   const edita = usuario ? podeEditar(usuario.perfil) : false
-  const dataExtenso = (() => {
+  const [dataExtenso] = useState(() => {
     const d = new Date().toLocaleDateString('pt-BR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
     })
     return d.charAt(0).toUpperCase() + d.slice(1)
-  })()
+  })
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Camera, Pencil, Plus, Search } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
+import { AjusteFoto } from '../../components/ui/AjusteFoto'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
@@ -51,6 +52,8 @@ export function UsuariosPage() {
     status: 'Ativo' as 'Ativo' | 'Inativo',
     foto: undefined as string | undefined,
   })
+  const [ajustando, setAjustando] = useState(false)
+  const [fotoPreview, setFotoPreview] = useState<string | undefined>(undefined)
 
   const { ord, ordenar } = useOrdenacao('nome')
 
@@ -118,6 +121,23 @@ export function UsuariosPage() {
     })
   }
 
+  function abrirAjustarFoto() {
+    if (!form.foto) return
+    setFotoPreview(form.foto)
+    setAjustando(true)
+  }
+
+  function fecharAjuste() {
+    setAjustando(false)
+    setFotoPreview(undefined)
+  }
+
+  function aoConfirmarAjuste(cortada: string) {
+    setForm((f) => ({ ...f, foto: cortada }))
+    setAjustando(false)
+    setFotoPreview(undefined)
+  }
+
   async function aoEscolherFoto(e: ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0]
     e.target.value = ''
@@ -131,9 +151,10 @@ export function UsuariosPage() {
       return
     }
     try {
-      const foto = await redimensionarImagem(arquivo, 256, 0.8)
-      setForm((f) => ({ ...f, foto }))
+      const preview = await redimensionarImagem(arquivo, 1024, 0.9)
       limparErroFoto()
+      setFotoPreview(preview)
+      setAjustando(true)
     } catch {
       setErros((erros) => ({ ...erros, foto: 'Não foi possível ler a imagem' }))
     }
@@ -339,21 +360,36 @@ export function UsuariosPage() {
 
       <Modal
         aberto={alvo !== null}
-        aoFechar={fechar}
+        aoFechar={() => (ajustando ? fecharAjuste() : fechar())}
         titulo={
-          criando
-            ? 'Novo usuário'
-            : `Editar perfil — ${editando?.nome ?? ''}`
+          ajustando
+            ? 'Ajustar foto de perfil'
+            : criando
+              ? 'Novo usuário'
+              : `Editar perfil — ${editando?.nome ?? ''}`
         }
         rodape={
-          <>
-            <Botao variante="secundario" onClick={fechar}>
-              Cancelar
+          ajustando ? (
+            <Botao variante="secundario" onClick={fecharAjuste}>
+              Voltar
             </Botao>
-            <Botao onClick={salvar}>{criando ? 'Criar usuário' : 'Salvar'}</Botao>
-          </>
+          ) : (
+            <>
+              <Botao variante="secundario" onClick={fechar}>
+                Cancelar
+              </Botao>
+              <Botao onClick={salvar}>{criando ? 'Criar usuário' : 'Salvar'}</Botao>
+            </>
+          )
         }
       >
+        {ajustando ? (
+          <AjusteFoto
+            imagem={fotoPreview ?? ''}
+            aoConfirmar={aoConfirmarAjuste}
+            aoCancelar={fecharAjuste}
+          />
+        ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Entrada
             label="Nome *"
@@ -380,9 +416,7 @@ export function UsuariosPage() {
               className="h-16 w-16 rounded-lg text-base"
             />
             <div className="flex min-w-0 flex-col gap-1.5">
-              <p className="text-xs font-medium text-content-muted">
-                Foto de perfil
-              </p>
+              <p className="text-xs font-medium text-content-muted">Foto de perfil</p>
               <div className="flex flex-wrap items-center gap-2">
                 <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-xs font-medium text-content transition-all hover:border-primary/40 hover:text-primary focus-within:ring-2 focus-within:ring-primary/30">
                   <Camera size={14} />
@@ -403,10 +437,17 @@ export function UsuariosPage() {
                     Remover
                   </Botao>
                 )}
+                {form.foto && (
+                  <Botao
+                    variante="secundario"
+                    tamanho="sm"
+                    onClick={abrirAjustarFoto}
+                  >
+                    Ajustar foto
+                  </Botao>
+                )}
               </div>
-              <p className="text-[11px] text-content-muted">
-                PNG, JPG ou WebP de até 5 MB — otimizada para 256px.
-              </p>
+              <p className="text-[11px] text-content-muted">PNG, JPG ou WebP de até 5 MB — otimizada para 256px.</p>
               {erros.foto && (
                 <span className="text-xs text-danger">{erros.foto}</span>
               )}
@@ -453,6 +494,7 @@ export function UsuariosPage() {
             </p>
           )}
         </div>
+        )}
       </Modal>
     </div>
   )

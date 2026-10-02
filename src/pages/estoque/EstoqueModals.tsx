@@ -3,7 +3,6 @@ import { Botao } from '../../components/ui/Botao'
 import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { Modal } from '../../components/ui/Modal'
 import { CATEGORIAS_ESTOQUE, UNIDADES } from '../../lib/codes'
-import { FORNECEDORES } from '../../data/seed'
 import { formatarNumeroBR, parseMoeda } from '../../lib/format'
 import {
   useEstoqueStore,
@@ -11,8 +10,22 @@ import {
   type DadosSaida,
   type NovoItem,
 } from '../../store/estoque'
+import { useFornecedoresStore } from '../../store/fornecedores'
 import { useUiStore } from '../../store/ui'
 import type { ItemEstoque, TipoEntrada, TipoSaida } from '../../types'
+
+function montarOpcoesFornecedor(
+  fornecedores: { nome: string; ativo: boolean }[],
+  atual: string,
+): { valor: string; rotulo: string }[] {
+  const opcoes = fornecedores
+    .filter((f) => f.ativo)
+    .map((f) => ({ valor: f.nome, rotulo: f.nome }))
+  if (atual && !opcoes.some((o) => o.valor === atual)) {
+    opcoes.unshift({ valor: atual, rotulo: `${atual} (inativo)` })
+  }
+  return opcoes
+}
 
 const TIPOS_ENTRADA: TipoEntrada[] = ['Compra', 'Devolução', 'Ajuste', 'Doação']
 const TIPOS_SAIDA: TipoSaida[] = ['Fornecimento', 'Destruição', 'Empréstimo', 'Devolução']
@@ -28,6 +41,7 @@ export function ItemEstoqueModal({
 }) {
   const criarItem = useEstoqueStore((s) => s.criarItem)
   const atualizarItem = useEstoqueStore((s) => s.atualizarItem)
+  const fornecedoresStore = useFornecedoresStore((s) => s.fornecedores)
   const [form, setForm] = useState({
     descricao: '',
     categoria: '',
@@ -37,6 +51,7 @@ export function ItemEstoqueModal({
     precoUnitario: '',
     notas: '',
   })
+  const opcoesFornecedor = montarOpcoesFornecedor(fornecedoresStore, form.fornecedor)
   const [erros, setErros] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -151,7 +166,7 @@ export function ItemEstoqueModal({
           label="Fornecedor"
           value={form.fornecedor}
           onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
-          opcoes={FORNECEDORES.map((f) => ({ valor: f, rotulo: f }))}
+          opcoes={opcoesFornecedor}
           placeholder="Selecione…"
           className="sm:col-span-2"
         />
@@ -180,6 +195,7 @@ export function MovimentoModal({
   const itens = useEstoqueStore((s) => s.itens)
   const registrarEntrada = useEstoqueStore((s) => s.registrarEntrada)
   const registrarSaida = useEstoqueStore((s) => s.registrarSaida)
+  const fornecedoresStore = useFornecedoresStore((s) => s.fornecedores)
   const notificar = useUiStore((s) => s.notificar)
   const [form, setForm] = useState({
     codigoItem: '',
@@ -191,6 +207,7 @@ export function MovimentoModal({
     motivo: '',
     notas: '',
   })
+  const opcoesFornecedor = montarOpcoesFornecedor(fornecedoresStore, form.fornecedor)
   const [erro, setErro] = useState('')
 
   useEffect(() => {
@@ -292,7 +309,7 @@ export function MovimentoModal({
               label="Fornecedor"
               value={form.fornecedor}
               onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
-              opcoes={FORNECEDORES.map((f) => ({ valor: f, rotulo: f }))}
+              opcoes={opcoesFornecedor}
               placeholder="Selecione…"
             />
             <Entrada

@@ -4,8 +4,10 @@ import type {
   Ativo,
   Contagem,
   Entrada,
+  Fornecedor,
   ItemEstoque,
   Manutencao,
+  Movimentacao,
   Saida,
   Solicitacao,
   Usuario,
@@ -380,6 +382,19 @@ const CONTAGENS: Contagem[] = [
   },
 ]
 
+const MOVIMENTACOES: Movimentacao[] = [
+  {
+    id: 'MOV-2026-000001',
+    codigoAtivo: 'CPU-001',
+    setorOrigem: 'Operacional',
+    setorDestino: 'TI',
+    responsavelDestino: 'tecnico@empresa.com',
+    status: 'Pendente',
+    criadoEm: '2026-09-28T14:00:00.000Z',
+    criadoPor: 'gerente@empresa.com',
+  },
+]
+
 export function aplicarSeed(): void {
   if (localStorage.getItem('ITSTOCK_SEEDED') === 'true') return
 
@@ -395,6 +410,16 @@ export function aplicarSeed(): void {
   gravarColecao<Solicitacao>('SOLICITACOES', SOLICITACOES)
   gravarColecao<Manutencao>('MANUTENCOES', MANUTENCOES)
   gravarColecao<Contagem>('CONTAGENS', CONTAGENS)
+  gravarColecao<Fornecedor>(
+    'FORNECEDORES',
+    FORNECEDORES.map((nome, i) => ({
+      id: `FOR-2026-${String(i + 1).padStart(6, '0')}`,
+      nome,
+      cnpj: '',
+      ativo: true,
+    })),
+  )
+  gravarColecao<Movimentacao>('MOVIMENTACOES', MOVIMENTACOES)
 
   localStorage.setItem('ITSTOCK_SEQ_LOG', '0')
   localStorage.setItem('ITSTOCK_SEQ_SOL', '4')
@@ -402,5 +427,8 @@ export function aplicarSeed(): void {
   localStorage.setItem('ITSTOCK_SEQ_EDD', '2')
   localStorage.setItem('ITSTOCK_SEQ_SAD', '2')
   localStorage.setItem('ITSTOCK_SEQ_INV', '1')
+  localStorage.setItem('ITSTOCK_SEQ_FOR', '5')
+  localStorage.setItem('ITSTOCK_SEQ_MOV', '1')
+  localStorage.setItem('ITSTOCK_SEQ_SET', '0')
   localStorage.setItem('ITSTOCK_SEEDED', 'true')
 }

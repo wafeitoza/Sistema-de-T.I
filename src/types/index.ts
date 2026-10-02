@@ -34,6 +34,40 @@ export interface Ativo {
   atualizadoEm: string
 }
 
+export interface Setor {
+  id: string
+  nome: string
+  responsavel: string
+  localizacao: string
+  ativo: boolean
+}
+
+export interface Fornecedor {
+  id: string
+  nome: string
+  cnpj: string
+  email?: string
+  telefone?: string
+  ativo: boolean
+}
+
+export type StatusMovimentacao = 'Pendente' | 'Confirmada' | 'Cancelada'
+
+export interface Movimentacao {
+  id: string
+  codigoAtivo: string
+  setorOrigem: string
+  setorDestino: string
+  responsavelDestino: string
+  status: StatusMovimentacao
+  criadoEm: string
+  criadoPor: string
+  confirmadoEm?: string
+  confirmadoPor?: string
+  canceladoEm?: string
+  canceladoPor?: string
+}
+
 export type StatusEstoque = 'Normal' | 'Baixo' | 'Zerado'
 
 export interface ItemEstoque {

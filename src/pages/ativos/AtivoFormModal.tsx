@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Botao } from '../../components/ui/Botao'
 import { AreaTexto, CampoMoeda, Entrada, Selecao } from '../../components/ui/Campos'
 import { Modal } from '../../components/ui/Modal'
-import { SETORES, TIPOS_ATIVO } from '../../lib/codes'
+import { TIPOS_ATIVO } from '../../lib/codes'
 import { formatarNumeroBR, parseMoeda } from '../../lib/format'
 import { errosAtivo } from '../../lib/validation'
 import { useAtivosStore } from '../../store/ativos'
+import { useSetoresStore } from '../../store/setores'
 import type { Ativo } from '../../types'
 
 interface Props {
@@ -47,8 +48,19 @@ const VAZIO: Formulario = {
 export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
   const criar = useAtivosStore((s) => s.criar)
   const atualizar = useAtivosStore((s) => s.atualizar)
+  const setoresStore = useSetoresStore((s) => s.setores)
   const [form, setForm] = useState<Formulario>(VAZIO)
   const [erros, setErros] = useState<Record<string, string>>({})
+
+  const opcoesSetor = useMemo(() => {
+    const opcoes = setoresStore
+      .filter((s) => s.ativo)
+      .map((s) => ({ valor: s.nome, rotulo: s.nome }))
+    if (form.setor && !opcoes.some((o) => o.valor === form.setor)) {
+      opcoes.unshift({ valor: form.setor, rotulo: `${form.setor} (inativo)` })
+    }
+    return opcoes
+  }, [setoresStore, form.setor])
 
   useEffect(() => {
     if (!aberto) return
@@ -144,7 +156,7 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
           value={form.setor}
           erro={erros.setor}
           onChange={(e) => campo('setor', e.target.value)}
-          opcoes={SETORES.map((s) => ({ valor: s, rotulo: s }))}
+          opcoes={opcoesSetor}
           placeholder="Selecione…"
         />
         <Entrada

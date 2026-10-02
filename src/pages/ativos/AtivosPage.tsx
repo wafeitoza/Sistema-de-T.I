@@ -9,11 +9,12 @@ import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
 import { Paginacao } from '../../components/ui/Paginacao'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
-import { SETORES, TIPOS_ATIVO } from '../../lib/codes'
+import { TIPOS_ATIVO } from '../../lib/codes'
 import { formatarData } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
 import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { useAtivosStore } from '../../store/ativos'
+import { useSetoresStore } from '../../store/setores'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import type { Ativo, StatusAtivo } from '../../types'
@@ -25,6 +26,7 @@ const STATUS_ATIVO: StatusAtivo[] = ['Ativo', 'Inativo', 'Manutenção', 'Descar
 export function AtivosPage() {
   const usuario = useAuthStore((s) => s.usuario)
   const { ativos, mudarStatus } = useAtivosStore()
+  const setoresStore = useSetoresStore((s) => s.setores)
   const notificar = useUiStore((s) => s.notificar)
   const editar = podeEditar(usuario?.perfil ?? 'Visualizador')
 
@@ -126,7 +128,9 @@ export function AtivosPage() {
           label=""
           value={filtroSetor}
           onChange={(e) => setFiltroSetor(e.target.value)}
-          opcoes={SETORES.map((s) => ({ valor: s, rotulo: s }))}
+          opcoes={setoresStore
+            .filter((s) => s.ativo)
+            .map((s) => ({ valor: s.nome, rotulo: s.nome }))}
           placeholder="Todos os setores"
           className="[&_span]:hidden"
         />

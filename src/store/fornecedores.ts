@@ -1,0 +1,136 @@
+import { create } from 'zustand'
+import { gravarColecao, lerColecao, proximaSequencia } from '../data/repository'
+import { calcularDiff, registrarLog } from '../lib/audit'
+import { gerarId } from '../lib/codes'
+import type { Fornecedor, ItemEstoque } from '../types'
+import { useAuthStore } from './auth'
+
+const COLECAO = 'FORNECEDORES'
+
+export interface Resultado {
+  ok: boolean
+  erro?: string
+}
+
+function usuarioAtual(): string {
+  return useAuthStore.getState().usuario?.email ?? 'sistema@empresa.com'
+}
+
+function carregarFornecedores(): Fornecedor[] {
+  const salvos = lerColecao<Fornecedor>(COLECAO)
+  if (salvos.length) return salvos
+  const nomes = Array.from(
+    new Set(
+      lerColecao<ItemEstoque>('ESTOQUE')
+        .map((i) => i.fornecedor?.trim())
+        .filter((n): n is string => !!n),
+    ),
+  )
+  const gerados = nomes.map<Fornecedor>((nome) => ({
+    id: gerarId('FOR', proximaSequencia('FOR')),
+    nome,
+    cnpj: '',
+    ativo: true,
+  }))
+  if (gerados.length) gravarColecao(COLECAO, gerados)
+  return gerados
+}
+
+function registrarNaAuditoria(
+  acao: 'CREATE' | 'UPDATE',
+  id: string,
+  antes: Fornecedor | null,
+  depois: Fornecedor,
+): void {
+  registrarLog({
+    usuario: usuarioAtual(),
+    acao,
+    tabela: 'FORNECEDORES',
+    registroId: id,
+    campos: antes
+      ? calcularDiff(
+          antes as unknown as Record<string, unknown>,
+          depois as unknown as Record<string, unknown>,
+        )
+      : Object.entries(depois).map(([campo, valor]) => ({
+          campo,
+          antes: null,
+          depois: valor,
+        })),
+  })
+}
+
+export interface DadosFornecedor {
+  nome: string
+  cnpj: string
+  email: string
+  telefone: string
+}
+
+interface FornecedoresState {
+  fornecedores: Fornecedor[]
+  criar: (dados: DadosFornecedor) => Resultado
+  editar: (id: string, dados: DadosFornecedor) => Resultado
+  alternarStatus: (id: string) => void
+}
+
+export const useFornecedoresStore = create<FornecedoresState>((set, get) => ({
+  fornecedores: carregarFornecedores(),
+
+  criar: (dados) => {
+    const nome = dados.nome.trim()
+    if (!nome) return { ok: false, erro: 'Informe a razão social.' }
+    if (get().fornecedores.some((f) => f.nome.toLowerCase() === nome.toLowerCase())) {
+      return { ok: false, erro: 'Já existe um fornecedor com esse nome.' }
+    }
+    const fornecedor: Fornecedor = {
+      id: gerarId('FOR', proximaSequencia('FOR')),
+      nome,
+      cnpj: dados.cnpj.trim(),
+      email: dados.email.trim() || undefined,
+      telefone: dados.telefone.trim() || undefined,
+      ativo: true,
+    }
+    const proximos = [...get().fornecedores, fornecedor]
+    gravarColecao(COLECAO, proximos)
+    registrarNaAuditoria('CREATE', fornecedor.id, null, fornecedor)
+    set({ fornecedores: proximos })
+    return { ok: true }
+  },
+
+  editar: (id, dados) => {
+    const alvo = get().fornecedores.find((f) => f.id === id)
+    if (!alvo) return { ok: false, erro: 'Fornecedor não encontrado.' }
+    const nome = dados.nome.trim()
+    if (!nome) return { ok: false, erro: 'Informe a razão social.' }
+    if (
+      get().fornecedores.some(
+        (f) => f.id !== id && f.nome.toLowerCase() === nome.toLowerCase(),
+      )
+    ) {
+      return { ok: false, erro: 'Já existe um fornecedor com esse nome.' }
+    }
+    const depois: Fornecedor = {
+      ...alvo,
+      nome,
+      cnpj: dados.cnpj.trim(),
+      email: dados.email.trim() || undefined,
+      telefone: dados.telefone.trim() || undefined,
+    }
+    const proximos = get().fornecedores.map((f) => (f.id === id ? depois : f))
+    gravarColecao(COLECAO, proximos)
+    registrarNaAuditoria('UPDATE', id, alvo, depois)
+    set({ fornecedores: proximos })
+    return { ok: true }
+  },
+
+  alternarStatus: (id) => {
+    const alvo = get().fornecedores.find((f) => f.id === id)
+    if (!alvo) return
+    const depois: Fornecedor = { ...alvo, ativo: !alvo.ativo }
+    const proximos = get().fornecedores.map((f) => (f.id === id ? depois : f))
+    gravarColecao(COLECAO, proximos)
+    registrarNaAuditoria('UPDATE', id, alvo, depois)
+    set({ fornecedores: proximos })
+  },
+}))

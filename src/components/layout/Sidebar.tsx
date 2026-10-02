@@ -2,11 +2,13 @@ import { NavLink } from 'react-router-dom'
 import { Boxes, LogOut, Moon, Sun, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { podeAcessarRota } from '../../lib/permissions'
-import { ROTAS_NAVEGACAO } from '../../lib/rotas'
+import { ROTAS_NAVEGACAO, type SecaoNav } from '../../lib/rotas'
 import { Avatar } from '../ui/Avatar'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import type { Perfil } from '../../types'
+
+const SECOES_NAV: SecaoNav[] = ['Operação', 'Cadastros', 'Sistema']
 
 export function Sidebar() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -40,29 +42,44 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3">
-        {ROTAS_NAVEGACAO.filter((l) => podeAcessarRota(l.para, perfil)).map((l) => (
-          <NavLink
-            key={l.para}
-            to={l.para}
-            end={l.para === '/'}
-            onClick={alternarSidebar}
-            className={({ isActive }) =>
-              cn(
-                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
-                isActive
-                  ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/30'
-                  : 'text-content-muted hover:bg-surface-2 hover:text-content',
-              )
-            }
-          >
-            <l.icone
-              size={18}
-              className="transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110"
-            />
-            {l.rotulo}
-          </NavLink>
-        ))}
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        {SECOES_NAV.map((secao) => {
+          const itens = ROTAS_NAVEGACAO.filter(
+            (l) => l.secao === secao && podeAcessarRota(l.para, perfil),
+          )
+          if (itens.length === 0) return null
+          return (
+            <div key={secao}>
+              <p className="px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-content-muted">
+                {secao}
+              </p>
+              <div className="space-y-1">
+                {itens.map((l) => (
+                  <NavLink
+                    key={l.para}
+                    to={l.para}
+                    end={l.para === '/'}
+                    onClick={alternarSidebar}
+                    className={({ isActive }) =>
+                      cn(
+                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
+                        isActive
+                          ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/30'
+                          : 'text-content-muted hover:bg-surface-2 hover:text-content',
+                      )
+                    }
+                  >
+                    <l.icone
+                      size={18}
+                      className="transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110"
+                    />
+                    {l.rotulo}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </nav>
 
       <div className="border-t border-line p-3">

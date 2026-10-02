@@ -9,12 +9,13 @@ import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { cn } from '../../lib/cn'
-import { SETORES, TIPOS_ATIVO } from '../../lib/codes'
+import { TIPOS_ATIVO } from '../../lib/codes'
 import { exportarCSV } from '../../lib/exportar'
 import { formatarData, formatarMoeda } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
 import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { useAtivosStore } from '../../store/ativos'
+import { useSetoresStore } from '../../store/setores'
 import { useAuthStore } from '../../store/auth'
 import { useEstoqueStore } from '../../store/estoque'
 import { useInventarioStore } from '../../store/inventario'
@@ -36,6 +37,7 @@ export function InventarioPage() {
   const { contagens } = useInventarioStore()
   const { itens } = useEstoqueStore()
   const { ativos } = useAtivosStore()
+  const setoresInventario = useSetoresStore((s) => s.setores)
   const notificar = useUiStore((s) => s.notificar)
   const editar = podeEditar(usuario?.perfil ?? 'Visualizador')
 
@@ -329,7 +331,9 @@ export function InventarioPage() {
               label=""
               value={filtroSetor}
               onChange={(e) => setFiltroSetor(e.target.value)}
-              opcoes={SETORES.map((s) => ({ valor: s, rotulo: s }))}
+              opcoes={setoresInventario
+                .filter((s) => s.ativo)
+                .map((s) => ({ valor: s.nome, rotulo: s.nome }))}
               placeholder="Todos os setores"
               className="[&_span]:hidden"
             />

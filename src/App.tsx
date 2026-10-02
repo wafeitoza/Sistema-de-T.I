@@ -11,6 +11,9 @@ import { EstoquePage } from './pages/estoque/EstoquePage'
 import { InventarioPage } from './pages/inventario/InventarioPage'
 import { LoginPage } from './pages/LoginPage'
 import { ManutencaoPage } from './pages/manutencao/ManutencaoPage'
+import { MovimentacoesPage } from './pages/movimentacoes/MovimentacoesPage'
+import { FornecedoresPage } from './pages/fornecedores/FornecedoresPage'
+import { SetoresPage } from './pages/setores/SetoresPage'
 import { SolicitacoesPage } from './pages/solicitacoes/SolicitacoesPage'
 import { TermosPage } from './pages/termos/TermosPage'
 import { UsuariosPage } from './pages/usuarios/UsuariosPage'
@@ -27,6 +30,9 @@ export default function App() {
           <Route path="/estoque" element={<EstoquePage />} />
           <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/solicitacoes" element={<SolicitacoesPage />} />
+          <Route path="/movimentacoes" element={<MovimentacoesPage />} />
+          <Route path="/setores" element={<SetoresPage />} />
+          <Route path="/fornecedores" element={<FornecedoresPage />} />
           <Route path="/termos" element={<TermosPage />} />
           <Route path="/manutencao" element={<ManutencaoPage />} />
           <Route path="/usuarios" element={<UsuariosPage />} />

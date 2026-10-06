@@ -18,6 +18,7 @@ export interface Ativo {
   tipo: string
   marca?: string
   modelo?: string
+  configuracao?: string
   serial?: string
   tombamento?: string
   setor: string

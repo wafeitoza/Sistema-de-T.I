@@ -1,6 +1,6 @@
 # PLANO DE IMPLANTAÇÃO E PONTO DE RETOMADA
 
-> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + aba Empréstimos)**
+> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + aba Empréstimos + etiquetas/QR)**
 > Leia este arquivo para continuar de onde paramos.
 
 ---
@@ -24,17 +24,19 @@
 | — | `8474564` | Recorte de foto (zoom + arrastar) no modal de usuários |
 | A | `9fa928e` | Migrations SQL do Supabase em `supabase/migrations/` (15 tabelas, RLS, auditoria append-only) |
 | — | `4fdf939` | Exclusão de fornecedores com bloqueio por vínculo + auditoria DELETE |
-| — | *(a commitar)* | Nova aba **Empréstimos** (controle de equipamentos emprestados a funcionários) |
+| — | `367f004` | Nova aba **Empréstimos** (controle de equipamentos emprestados a funcionários) |
+| — | *(a commitar)* | **Etiquetas e QR com todos os dados do equipamento** + campo `configuracao` |
 
 ### Qualidade (validado na última entrega)
 - `npm run lint` → **0 warnings, 0 erros**
 - `npx tsc --noEmit` → OK
-- `npm test` → **67/67** (Vitest + happy-dom, 8 arquivos)
+- `npm test` → **72/72** (Vitest + happy-dom, 9 arquivos)
 - `npm run build` → OK
 - E2E Chrome headless: local e produção com **0 erros de console**
+  (últimas rodadas: `cdp-emprestimos.mjs` 34 checks · `cdp-etiquetas.mjs` 21 checks)
 
 ### Estado do Git
-`main` sincronizada com `origin/main`; **pendente de commit**: aba Empréstimos (13 arquivos) + este documento.
+`main` sincronizada com `origin/main`; **pendente de commit**: etiquetas/QR + campo `configuracao` + este documento.
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -48,6 +50,16 @@ Controle de empréstimo de equipamento de informática para **uso pessoal**, em 
 - **Backup**: `EMPRESTIMOS` em `COLECOES_BACKUP`, `EMP` em `SEQUENCIAS_BACKUP`.
 - **Testes**: `src/store/emprestimos.test.ts` (8 casos) — 67/67 no total.
 - **E2E**: `/tmp/opencode/cdp-emprestimos.mjs` — 34 checks (menu, cards, filtros, criação, bloqueio, devolução, cancelamento, auditoria, 0 erros de console).
+
+### Funcionalidade nova (06/10/2026) — **Etiquetas e QR com dados do equipamento**
+Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento completo: **setor, tombamento, configuração, marca, modelo e responsável** — os mesmos dados vão dentro do QR, então escaneando no celular lê-se tudo sem o sistema.
+
+- **Campo `configuracao`** (opcional) em `Ativo` + `NovoAtivo` + form de ativo (`AtivoFormModal`) — ex.: `i7 13ª / 16GB / SSD 512GB`. Migration `20261006020000_ativos_configuracao.sql` (`alter table ... add column if not exists`); seed preenche NOTE-001/NOTE-002/MON-001/CPU-001.
+- **`conteudoQRAtivo()`** em `src/lib/codes.ts`: monta o texto multi-linha da etiqueta (`codigo`, `descricao`, `Tomb:`, `Setor:`, `Config:`, `Marca:`, `Modelo:`, `Resp.:`), omitindo campos vazios. `urlQRCode()` continua igual (quickchart.io) e recebe esse conteúdo.
+- **QR recalculado no render** em `EtiquetasModal` e no modal de QR de `AtivosPage` (hoje editou o ativo → etiqueta/QR já saem atualizados). `qrUrl` persistido também é regravado em `criar()`/`atualizar()` do store e no `aplicarSeed()` (já com tombamento sorteado).
+- **UI**: etiqueta ganhou as linhas `Setor`/`Config`/`Marca · Modelo`/`Resp.` (`text-[10px] truncate`), lista de seleção mostra tombamento · setor · configuração, e o modal de QR individual lista os mesmos dados. Layout e `@media print` intactos (decisão do usuário: só adicionar campos).
+- **Testes**: novos casos em `src/lib/codes.test.ts` + arquivo `src/store/ativos.test.ts` (2 casos: `criar`/`atualizar` regravam `qrUrl`).
+- **E2E**: `/tmp/opencode/cdp-etiquetas.mjs` — 21 checks (campo no form, persistência, dados no QR, etiqueta com os 6 campos, recalculo após edição, CSS de impressão, 0 erros de console).
 
 ### Pendências / cuidados
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
@@ -87,15 +99,16 @@ Controle de empréstimo de equipamento de informática para **uso pessoal**, em 
 
 ### Fase A — Fundação (1º deploy) ✅ CONCLUÍDA (05/10/2026)
 1. ~~Criar projeto Supabase (grátis, 2 projetos, 500 MB, 50k MAU) + habilitar e-mail/senha~~ → **falta só sua parte: criar a conta e o projeto**
-2. ✅ Schema SQL versionado em `supabase/migrations/` (4 arquivos, ordem alfabética = ordem de execução):
+2. ✅ Schema SQL versionado em `supabase/migrations/` (6 arquivos, ordem alfabética = ordem de execução):
    - `20261005120000_esquema_inicial.sql` — 15 tabelas: `usuarios, setores, fornecedores, ativos, estoque, entradas_estoque, saidas_estoque, solicitacoes, manutencoes, contagens+contagem_itens, termos, movimentacoes, auditoria, sequencias`
    - `20261005120100_auditoria_append_only.sql` — trigger que bloqueia UPDATE/DELETE em `auditoria` (TRUNCATE liberado p/ restore) + trigger de `atualizado_em` em 10 tabelas
    - `20261005120200_sequencias.sql` — função `proxima_sequencia(nome)` (SECURITY DEFINER, mesmo contrato do `proximaSequencia()` do app) + seed das 10 sequências
    - `20261005120300_rls_e_privilegios.sql` — RLS **ligado em todas as tabelas** com policy temporária `using (true)` (Fase D substitui por perfil); `auditoria` = SELECT+INSERT; `sequencias` = SELECT só (escrita só via RPC)
    - `20261006010000_emprestimos.sql` — tabela `emprestimos` da nova aba (FK p/ `ativos`, `previsao >= data`, `unique` de empréstimo em aberto por ativo, trigger de `atualizado_em`, sequência `EMP`, RLS ligado junto com a tabela)
+   - `20261006020000_ativos_configuracao.sql` — coluna opcional `ativos.configuracao` (etiqueta/QR do equipamento)
 3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
 
-**Como aplicar:** no SQL Editor do Supabase, colar os 5 arquivos em ordem (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram.
+**Como aplicar:** no SQL Editor do Supabase, colar os 6 arquivos em ordem (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram.
 
 **Ainda não feito da Fase A:** criar a conta/projeto Supabase (requer você) e me passar URL + anon key.
 
@@ -137,7 +150,7 @@ Controle de empréstimo de equipamento de informática para **uso pessoal**, em 
 
 ### E2E (Chrome headless)
 - CDP porta **9225** (`curl http://127.0.0.1:9225/json/list`)
-- Scripts em `/tmp/opencode/cdp-*.mjs` (ex.: `cdp-fase6.mjs` — login admin + rotas + sidebar + 0 erros + screenshot)
+- Scripts em `/tmp/opencode/cdp-*.mjs` (ex.: `cdp-etiquetas.mjs` — login admin + `/ativos` + etiquetas/QR + 21 checks)
 - **Quirks**: input React → setter nativo do prototype + `Event('input',{bubbles:true})`; select → setter de HTMLSelectElement + `Event('change')`; screenshot → repaint zoom 1.01/1.0 + `bringToFront`; modal `[role=dialog]`; leitura de imagem stale → contornar com `magick <file> -crop WxH+X+Y` antes do Read; `window.print()` é no-op no headless
 - Validar deploy: hash de `dist/assets/index-*.js` == `<script>` de `https://it-stock-react.vercel.app/`
 
@@ -156,12 +169,13 @@ Controle de empréstimo de equipamento de informática para **uso pessoal**, em 
 ## 5. Como retomar (checklist)
 
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
-2. `git status` + `git log --oneline -3` → deve estar limpo, topo `4fdf939` (ou posterior)
+2. `git status` + `git log --oneline -3` → deve estar limpo, topo `367f004` ou posterior
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
 4. **Próximo passo:** você cria a conta e o projeto Supabase → me passa `SUPABASE_URL` + `SUPABASE_ANON_KEY`
    → eu aplico as migrations (SQL Editor ou CLI) e começo a **Fase B** (`src/data/api.ts`)
 5. Rodar validação sempre: `npm run lint && npx tsc --noEmit && npm test && npm run build`
 6. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
+   (rebuild obrigatório antes do E2E: `npm run build` e `npm run preview` na 4173)
 7. Ao final: revogar token da Vercel
 
 ### Pendências conhecidas

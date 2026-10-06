@@ -20,6 +20,7 @@ interface Formulario {
   tipo: string
   marca: string
   modelo: string
+  configuracao: string
   serial: string
   tombamento: string
   setor: string
@@ -35,6 +36,7 @@ const VAZIO: Formulario = {
   tipo: '',
   marca: '',
   modelo: '',
+  configuracao: '',
   serial: '',
   tombamento: '',
   setor: '',
@@ -74,6 +76,7 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
               tipo: ativo.tipo,
               marca: ativo.marca ?? '',
               modelo: ativo.modelo ?? '',
+              configuracao: ativo.configuracao ?? '',
               serial: ativo.serial ?? '',
               tombamento: ativo.tombamento ?? '',
               setor: ativo.setor,
@@ -104,6 +107,7 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
       tipo: form.tipo,
       marca: form.marca.trim() || undefined,
       modelo: form.modelo.trim() || undefined,
+      configuracao: form.configuracao.trim() || undefined,
       serial: form.serial.trim() || undefined,
       tombamento: form.tombamento.trim() || undefined,
       setor: form.setor,
@@ -173,6 +177,13 @@ export function AtivoFormModal({ aberto, aoFechar, ativo }: Props) {
           value={form.modelo}
           onChange={(e) => campo('modelo', e.target.value)}
           placeholder="Latitude 5540"
+        />
+        <Entrada
+          label="Configuração"
+          value={form.configuracao}
+          onChange={(e) => campo('configuracao', e.target.value)}
+          placeholder="i7 13ª / 16GB / SSD 512GB"
+          className="sm:col-span-2"
         />
         <Entrada
           label="Serial"

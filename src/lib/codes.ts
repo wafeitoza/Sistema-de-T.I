@@ -71,3 +71,28 @@ export function gerarId(prefixo: string, sequencia: number, ano = new Date().get
 export function urlQRCode(texto: string): string {
   return `https://quickchart.io/qr?text=${encodeURIComponent(texto)}&size=200&dark=111827`
 }
+
+/**
+ * Conteúdo impresso na etiqueta e codificado no QR do equipamento.
+ * Só inclui campos preenchidos — o QR deve ser legível escaneando direto
+ * no celular, sem precisar do sistema.
+ */
+export function conteudoQRAtivo(ativo: {
+  codigo: string
+  descricao: string
+  tombamento?: string
+  setor: string
+  configuracao?: string
+  marca?: string
+  modelo?: string
+  responsavel: string
+}): string {
+  const linhas = [ativo.codigo, ativo.descricao]
+  if (ativo.tombamento) linhas.push(`Tomb: ${ativo.tombamento}`)
+  linhas.push(`Setor: ${ativo.setor}`)
+  if (ativo.configuracao) linhas.push(`Config: ${ativo.configuracao}`)
+  if (ativo.marca) linhas.push(`Marca: ${ativo.marca}`)
+  if (ativo.modelo) linhas.push(`Modelo: ${ativo.modelo}`)
+  linhas.push(`Resp.: ${ativo.responsavel}`)
+  return linhas.join('\n')
+}

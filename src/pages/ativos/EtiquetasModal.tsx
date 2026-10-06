@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { CheckCheck, Printer, Search, X } from 'lucide-react'
 import { Botao } from '../../components/ui/Botao'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
+import { conteudoQRAtivo, urlQRCode } from '../../lib/codes'
 import type { Ativo } from '../../types'
 
 export function EtiquetasModal({
@@ -141,10 +142,18 @@ export function EtiquetasModal({
                         <span className="font-mono text-xs font-semibold">{a.codigo}</span> —{' '}
                         {a.descricao}
                       </span>
-                      {a.tombamento && (
-                        <span className="block text-[11px] text-content-muted">
-                          Tombamento {a.tombamento} · {a.setor}
+                      {a.tombamento || a.configuracao ? (
+                        <span className="block truncate text-[11px] text-content-muted">
+                          {[
+                            a.tombamento && `Tombamento ${a.tombamento}`,
+                            a.setor,
+                            a.configuracao,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </span>
+                      ) : (
+                        <span className="block text-[11px] text-content-muted">{a.setor}</span>
                       )}
                     </span>
                   </label>
@@ -163,22 +172,42 @@ export function EtiquetasModal({
               {etiquetas.map((a) => (
                 <div
                   key={a.codigo}
-                  className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
+                  className="flex items-start gap-2 rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
                 >
                   <img
-                    src={a.qrUrl}
+                    src={urlQRCode(conteudoQRAtivo(a))}
                     alt={`QR ${a.codigo}`}
                     className="h-14 w-14 shrink-0"
                     loading="lazy"
                   />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs font-bold text-slate-900">{a.codigo}</p>
                     <p className="truncate text-[10px] leading-tight text-slate-700">
                       {a.descricao}
                     </p>
+                    <p className="truncate text-[10px] leading-tight text-slate-700">
+                      Setor: <span className="font-semibold">{a.setor}</span>
+                    </p>
                     {a.tombamento && (
-                      <p className="font-mono text-[10px] text-slate-500">TB {a.tombamento}</p>
+                      <p className="font-mono truncate text-[10px] leading-tight text-slate-700">
+                        Tomb: {a.tombamento}
+                      </p>
                     )}
+                    {a.configuracao && (
+                      <p className="truncate text-[10px] leading-tight text-slate-700">
+                        Config: {a.configuracao}
+                      </p>
+                    )}
+                    {(a.marca || a.modelo) && (
+                      <p className="truncate text-[10px] leading-tight text-slate-700">
+                        {a.marca}
+                        {a.marca && a.modelo ? ' · ' : ''}
+                        {a.modelo}
+                      </p>
+                    )}
+                    <p className="truncate text-[10px] leading-tight text-slate-700">
+                      Resp.: {a.responsavel}
+                    </p>
                   </div>
                 </div>
               ))}

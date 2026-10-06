@@ -1,5 +1,5 @@
 import { gravarColecao } from './repository'
-import { urlQRCode } from '../lib/codes'
+import { conteudoQRAtivo, urlQRCode } from '../lib/codes'
 import { hojeBR, somarDiasBR } from '../lib/format'
 import type {
   Ativo,
@@ -85,6 +85,7 @@ const ATIVOS: Ativo[] = [
   ativoBase('NOTE-001', 'Notebook Dell Latitude 5540', 'Notebook', 'TI', 'tecnico@empresa.com', {
     marca: 'Dell',
     modelo: 'Latitude 5540',
+    configuracao: 'i7 13ª / 16GB / SSD 512GB',
     serial: 'DL5540-9921',
     valorAquisicao: 5490,
     localizacao: 'Sala TI - Armário 1',
@@ -95,6 +96,7 @@ const ATIVOS: Ativo[] = [
   ativoBase('NOTE-002', 'Notebook Lenovo ThinkPad E14', 'Notebook', 'Financeiro', 'viewer@empresa.com', {
     marca: 'Lenovo',
     modelo: 'ThinkPad E14',
+    configuracao: 'i5 12ª / 8GB / SSD 256GB',
     serial: 'LN14-3310',
     valorAquisicao: 4890,
     localizacao: 'Sala Financeiro - Mesa 3',
@@ -105,6 +107,7 @@ const ATIVOS: Ativo[] = [
   ativoBase('MON-001', 'Monitor LG UltraWide 29"', 'Monitor', 'TI', 'admin@empresa.com', {
     marca: 'LG',
     modelo: '29WK600',
+    configuracao: '29" IPS 2560x1080 75Hz',
     valorAquisicao: 1290,
     dataAquisicao: '10/01/2025',
     proximaManutencao: '15/11/2026',
@@ -119,6 +122,7 @@ const ATIVOS: Ativo[] = [
   ativoBase('CPU-001', 'Desktop CPU Intel i5 12ª Geração', 'CPU/Computador', 'Operacional', 'tecnico@empresa.com', {
     marca: 'Intel',
     modelo: 'i5-12400',
+    configuracao: 'i5-12400 / 16GB / SSD 512GB',
     serial: 'CPU-12-8871',
     valorAquisicao: 3750,
     dataAquisicao: '05/11/2024',
@@ -448,6 +452,8 @@ export function aplicarSeed(): void {
   gravarColecao<Usuario>('USUARIOS', USUARIOS)
   ATIVOS.forEach((a, i) => {
     if (!a.tombamento) a.tombamento = `TOM-${String(i + 1).padStart(6, '0')}`
+    // o QR carrega todos os dados do equipamento (com tombamento sorteado acima)
+    a.qrUrl = urlQRCode(conteudoQRAtivo(a))
   })
 
   gravarColecao<Ativo>('ATIVOS', ATIVOS)

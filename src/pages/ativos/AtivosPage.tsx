@@ -9,7 +9,7 @@ import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Modal } from '../../components/ui/Modal'
 import { Paginacao } from '../../components/ui/Paginacao'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
-import { TIPOS_ATIVO } from '../../lib/codes'
+import { conteudoQRAtivo, TIPOS_ATIVO, urlQRCode } from '../../lib/codes'
 import { formatarData } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
 import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
@@ -276,21 +276,33 @@ export function AtivosPage() {
         {qrAtivo && (
           <div className="flex flex-col items-center gap-4 py-2 text-center">
             <img
-              src={qrAtivo.qrUrl}
+              src={urlQRCode(conteudoQRAtivo(qrAtivo))}
               alt={`QR Code de ${qrAtivo.codigo}`}
               className="h-48 w-48 rounded-lg border border-line bg-white p-2"
             />
-            <div>
+            <div className="space-y-0.5">
               <p className="text-sm font-semibold text-content">{qrAtivo.descricao}</p>
               <p className="font-mono text-xs text-content-muted">{qrAtivo.codigo}</p>
+              <p className="text-xs text-content-muted">Setor: {qrAtivo.setor}</p>
               {qrAtivo.tombamento && (
-                <p className="font-mono text-xs text-primary">
+                <p className="font-mono text-xs text-content-muted">
                   Tombamento: {qrAtivo.tombamento}
                 </p>
               )}
+              {qrAtivo.configuracao && (
+                <p className="text-xs text-content-muted">
+                  Configuração: {qrAtivo.configuracao}
+                </p>
+              )}
+              {(qrAtivo.marca || qrAtivo.modelo) && (
+                <p className="text-xs text-content-muted">
+                  {[qrAtivo.marca, qrAtivo.modelo].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              <p className="text-xs text-content-muted">Responsável: {qrAtivo.responsavel}</p>
             </div>
             <a
-              href={qrAtivo.qrUrl}
+              href={urlQRCode(conteudoQRAtivo(qrAtivo))}
               target="_blank"
               rel="noreferrer"
               className="text-xs text-primary underline"

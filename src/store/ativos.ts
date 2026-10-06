@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { gravarColecao, lerColecao } from '../data/repository'
 import { calcularDiff, registrarLog } from '../lib/audit'
-import { proximoCodigoAtivo, urlQRCode } from '../lib/codes'
+import { conteudoQRAtivo, proximoCodigoAtivo, urlQRCode } from '../lib/codes'
 import { agoraISO, somarDiasBR } from '../lib/format'
 import { useAuthStore } from './auth'
 import type { Ativo, StatusAtivo } from '../types'
@@ -21,6 +21,7 @@ export interface NovoAtivo {
   tipo: string
   marca?: string
   modelo?: string
+  configuracao?: string
   serial?: string
   tombamento?: string
   setor: string
@@ -55,7 +56,7 @@ export const useAtivosStore = create<AtivosState>((set, get) => ({
       ...dados,
       codigo,
       status: 'Ativo',
-      qrUrl: urlQRCode(codigo),
+      qrUrl: urlQRCode(conteudoQRAtivo({ ...dados, codigo })),
       criadoEm: agoraISO(),
       atualizadoEm: agoraISO(),
     }
@@ -80,7 +81,13 @@ export const useAtivosStore = create<AtivosState>((set, get) => ({
     const ativos = get().ativos
     const alvo = ativos.find((a) => a.codigo === codigo)
     if (!alvo) return
-    const atualizado: Ativo = { ...alvo, ...campos, atualizadoEm: agoraISO() }
+    const atualizado: Ativo = {
+      ...alvo,
+      ...campos,
+      atualizadoEm: agoraISO(),
+      // o QR muda junto com os dados do equipamento (setor, config, responsável…)
+      qrUrl: urlQRCode(conteudoQRAtivo({ ...alvo, ...campos })),
+    }
     const proximos = ativos.map((a) => (a.codigo === codigo ? atualizado : a))
     persistir(proximos)
     registrarLog({

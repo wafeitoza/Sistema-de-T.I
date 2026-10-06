@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { gerarId, PREFIXOS, proximoCodigoAtivo, proximoCodigoItem, urlQRCode } from './codes'
+import {
+  conteudoQRAtivo,
+  gerarId,
+  PREFIXOS,
+  proximoCodigoAtivo,
+  proximoCodigoItem,
+  urlQRCode,
+} from './codes'
 
 describe('gerarId', () => {
   it('monta prefixo-ano-sequência com 6 dígitos', () => {
@@ -45,5 +52,54 @@ describe('urlQRCode', () => {
     expect(url).toContain('quickchart.io')
     expect(url).toContain('CPU-001')
     expect(urlQRCode('a b&c')).toContain(encodeURIComponent('a b&c'))
+  })
+})
+
+describe('conteudoQRAtivo', () => {
+  const ativo = {
+    codigo: 'NOTE-001',
+    descricao: 'Notebook Dell Latitude 5540',
+    tombamento: 'TOM-000001',
+    setor: 'TI',
+    configuracao: 'i7 13ª / 16GB / SSD 512GB',
+    marca: 'Dell',
+    modelo: 'Latitude 5540',
+    responsavel: 'tecnico@empresa.com',
+  }
+
+  it('monta todas as linhas da etiqueta na ordem esperada', () => {
+    expect(conteudoQRAtivo(ativo)).toBe(
+      [
+        'NOTE-001',
+        'Notebook Dell Latitude 5540',
+        'Tomb: TOM-000001',
+        'Setor: TI',
+        'Config: i7 13ª / 16GB / SSD 512GB',
+        'Marca: Dell',
+        'Modelo: Latitude 5540',
+        'Resp.: tecnico@empresa.com',
+      ].join('\n'),
+    )
+  })
+
+  it('omite tombamento, configuração, marca e modelo vazios', () => {
+    const conteudo = conteudoQRAtivo({
+      codigo: 'MON-002',
+      descricao: 'Monitor Samsung 24" FHD',
+      setor: 'Administrativo',
+      responsavel: 'gerente@empresa.com',
+    })
+    expect(conteudo).toBe(
+      ['MON-002', 'Monitor Samsung 24" FHD', 'Setor: Administrativo', 'Resp.: gerente@empresa.com'].join(
+        '\n',
+      ),
+    )
+  })
+
+  it('gera QR com os dados do equipamento codificados na URL', () => {
+    const conteudo = conteudoQRAtivo(ativo)
+    const url = urlQRCode(conteudo)
+    expect(url).toContain('quickchart.io')
+    expect(url).toContain(encodeURIComponent(conteudo))
   })
 })

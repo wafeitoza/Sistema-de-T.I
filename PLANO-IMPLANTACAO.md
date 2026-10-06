@@ -1,6 +1,6 @@
 # PLANO DE IMPLANTAÇÃO E PONTO DE RETOMADA
 
-> Documento de continuidade — **última atualização: 01/10/2026 (Fase 6 concluída)**
+> Documento de continuidade — **última atualização: 05/10/2026 (Fase A concluída)**
 > Leia este arquivo para continuar de onde paramos.
 
 ---
@@ -21,6 +21,8 @@
 | 4 | `d82a2ca` | Termos com SHA-256 + etiquetas QR para impressão |
 | 5 | `7fdda6e` | Setores, fornecedores, movimentações (RN006), sidebar em seções |
 | 6 | `972ad00` | Vitest (55 testes), lint 0 warnings, dead code, README, badge "Em andamento" |
+| — | `8474564` | Recorte de foto (zoom + arrastar) no modal de usuários |
+| A | *(a commitar)* | Migrations SQL do Supabase em `supabase/migrations/` |
 
 ### Qualidade (validado em `972ad00`)
 - `npm run lint` → **0 warnings, 0 erros**
@@ -30,10 +32,11 @@
 - E2E Chrome headless: local e produção com **0 erros de console**
 
 ### Estado do Git
-Working tree limpa; `main` sincronizada com `origin/main`. **Nada pendente.**
+`main` sincronizada com `origin/main`; **pendente de commit**: `supabase/migrations/` (4 arquivos) + atualização deste documento.
 
 ### Pendências / cuidados
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
+- ⚠️ Criar a conta/projeto Supabase e me passar URL + anon key (bloqueio da Fase B).
 - Permissões vigentes em `src/lib/permissions.ts` (ACESSO_ROTA) — base para o RLS da Fase D.
 
 ---
@@ -67,10 +70,18 @@ Working tree limpa; `main` sincronizada com `origin/main`. **Nada pendente.**
 
 ## 3. Plano aprovado — Implantação profissional (Supabase free tier)
 
-### Fase A — Fundação (1º deploy)
-1. Criar projeto Supabase (grátis, 2 projetos, 500 MB, 50k MAU) + habilitar e-mail/senha
-2. Schema SQL versionado em `supabase/migrations/`: tabelas `usuarios, ativos, estoque, movimentacoes_estoque, solicitacoes, manutencoes, inventario+itens, termos, setores, fornecedores, movimentacoes, auditoria (append-only), sequencias`
-3. Constraints: `UNIQUE(codigo)` (RN001), FKs, coluna `atualizado_em` para detectar conflito
+### Fase A — Fundação (1º deploy) ✅ CONCLUÍDA (05/10/2026)
+1. ~~Criar projeto Supabase (grátis, 2 projetos, 500 MB, 50k MAU) + habilitar e-mail/senha~~ → **falta só sua parte: criar a conta e o projeto**
+2. ✅ Schema SQL versionado em `supabase/migrations/` (4 arquivos, ordem alfabética = ordem de execução):
+   - `20261005120000_esquema_inicial.sql` — 15 tabelas: `usuarios, setores, fornecedores, ativos, estoque, entradas_estoque, saidas_estoque, solicitacoes, manutencoes, contagens+contagem_itens, termos, movimentacoes, auditoria, sequencias`
+   - `20261005120100_auditoria_append_only.sql` — trigger que bloqueia UPDATE/DELETE em `auditoria` (TRUNCATE liberado p/ restore) + trigger de `atualizado_em` em 10 tabelas
+   - `20261005120200_sequencias.sql` — função `proxima_sequencia(nome)` (SECURITY DEFINER, mesmo contrato do `proximaSequencia()` do app) + seed das 10 sequências
+   - `20261005120300_rls_e_privilegios.sql` — RLS **ligado em todas as tabelas** com policy temporária `using (true)` (Fase D substitui por perfil); `auditoria` = SELECT+INSERT; `sequencias` = SELECT só (escrita só via RPC)
+3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
+
+**Como aplicar:** no SQL Editor do Supabase, colar os 4 arquivos em ordem (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram.
+
+**Ainda não feito da Fase A:** criar a conta/projeto Supabase (requer você) e me passar URL + anon key.
 
 ### Fase B — Camada de dados (maior bloco)
 4. Novo `src/data/api.ts`: **carrega todas as coleções no boot** (paralelo); cada mutação vira `upsert`/`delete` assíncrono — stores mantêm lógica síncrona em memória
@@ -129,9 +140,15 @@ Working tree limpa; `main` sincronizada com `origin/main`. **Nada pendente.**
 ## 5. Como retomar (checklist)
 
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
-2. `git status` + `git log --oneline -3` → deve estar limpo, topo `972ad00` (ou posterior)
+2. `git status` + `git log --oneline -3` → deve estar limpo, topo `8474564` (ou posterior)
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
-4. Iniciar pela **Fase A**: criar conta Supabase → projeto → migration SQL inicial
+4. **Próximo passo:** você cria a conta e o projeto Supabase → me passa `SUPABASE_URL` + `SUPABASE_ANON_KEY`
+   → eu aplico as migrations (SQL Editor ou CLI) e começo a **Fase B** (`src/data/api.ts`)
 5. Rodar validação sempre: `npm run lint && npx tsc --noEmit && npm test && npm run build`
 6. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
 7. Ao final: revogar token da Vercel
+
+### Pendências conhecidas
+- ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys.
+- ⚠️ RLS está com policy temporária `using (true)` (acesso geral) — **obrigatório resolver na Fase D** antes de dados reais.
+- ⚠️ `auditoria` hoje aceita INSERT vindo do navegador (sem autenticação) — aceitável só até a Fase C.

@@ -37,26 +37,32 @@ function carregarFornecedores(): Fornecedor[] {
 }
 
 function registrarNaAuditoria(
-  acao: 'CREATE' | 'UPDATE',
+  acao: 'CREATE' | 'UPDATE' | 'DELETE',
   id: string,
   antes: Fornecedor | null,
-  depois: Fornecedor,
+  depois: Fornecedor | null,
 ): void {
   registrarLog({
     usuario: usuarioAtual(),
     acao,
     tabela: 'FORNECEDORES',
     registroId: id,
-    campos: antes
-      ? calcularDiff(
-          antes as unknown as Record<string, unknown>,
-          depois as unknown as Record<string, unknown>,
-        )
-      : Object.entries(depois).map(([campo, valor]) => ({
+    campos: acao === 'DELETE'
+      ? Object.entries(antes ?? {}).map(([campo, valor]) => ({
           campo,
-          antes: null,
-          depois: valor,
-        })),
+          antes: valor,
+          depois: null,
+        }))
+      : antes
+        ? calcularDiff(
+            antes as unknown as Record<string, unknown>,
+            depois as unknown as Record<string, unknown>,
+          )
+        : Object.entries(depois ?? {}).map(([campo, valor]) => ({
+            campo,
+            antes: null,
+            depois: valor,
+          })),
   })
 }
 
@@ -72,6 +78,7 @@ interface FornecedoresState {
   criar: (dados: DadosFornecedor) => Resultado
   editar: (id: string, dados: DadosFornecedor) => Resultado
   alternarStatus: (id: string) => void
+  excluir: (id: string) => Resultado
 }
 
 export const useFornecedoresStore = create<FornecedoresState>((set, get) => ({
@@ -132,5 +139,26 @@ export const useFornecedoresStore = create<FornecedoresState>((set, get) => ({
     gravarColecao(COLECAO, proximos)
     registrarNaAuditoria('UPDATE', id, alvo, depois)
     set({ fornecedores: proximos })
+  },
+
+  excluir: (id) => {
+    const alvo = get().fornecedores.find((f) => f.id === id)
+    if (!alvo) return { ok: false, erro: 'Fornecedor não encontrado.' }
+
+    const emUso = lerColecao<ItemEstoque>('ESTOQUE').filter(
+      (i) => i.fornecedor?.trim().toLowerCase() === alvo.nome.trim().toLowerCase(),
+    )
+    if (emUso.length > 0) {
+      return {
+        ok: false,
+        erro: `${alvo.nome} está vinculado a ${emUso.length} item(ns) de estoque. Desative o fornecedor em vez de excluir.`,
+      }
+    }
+
+    const proximos = get().fornecedores.filter((f) => f.id !== id)
+    gravarColecao(COLECAO, proximos)
+    registrarNaAuditoria('DELETE', id, alvo, null)
+    set({ fornecedores: proximos })
+    return { ok: true }
   },
 }))

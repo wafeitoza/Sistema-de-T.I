@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Pencil, Plus, Power, Search } from 'lucide-react'
+import { Pencil, Plus, Power, Search, Trash2 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
 import { EstadoVazio } from '../../components/ui/EstadoVazio'
+import { Modal } from '../../components/ui/Modal'
 import { Paginacao } from '../../components/ui/Paginacao'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
@@ -15,13 +16,14 @@ import { FornecedorFormModal } from './FornecedorFormModal'
 
 export function FornecedoresPage() {
   const usuario = useAuthStore((s) => s.usuario)
-  const { fornecedores, alternarStatus } = useFornecedoresStore()
+  const { fornecedores, alternarStatus, excluir } = useFornecedoresStore()
   const notificar = useUiStore((s) => s.notificar)
   const podeEditar = usuario?.perfil === 'Admin' || usuario?.perfil === 'Gerente'
 
   const [busca, setBusca] = useState('')
   const [modalForm, setModalForm] = useState(false)
   const [emEdicao, setEmEdicao] = useState<Fornecedor | null>(null)
+  const [paraExcluir, setParaExcluir] = useState<Fornecedor | null>(null)
   const { ord, ordenar } = useOrdenacao('nome')
 
   const filtrados = useMemo(() => {
@@ -45,6 +47,18 @@ export function FornecedoresPage() {
       'sucesso',
       f.ativo ? `Fornecedor ${f.nome} desativado.` : `Fornecedor ${f.nome} reativado.`,
     )
+  }
+
+  function confirmarExclusao() {
+    if (!paraExcluir) return
+    const resultado = excluir(paraExcluir.id)
+    if (!resultado.ok) {
+      notificar('erro', resultado.erro ?? 'Não foi possível excluir o fornecedor.')
+      setParaExcluir(null)
+      return
+    }
+    notificar('info', `Fornecedor ${paraExcluir.nome} excluído.`)
+    setParaExcluir(null)
   }
 
   return (
@@ -150,6 +164,13 @@ export function FornecedoresPage() {
                       >
                         <Power size={16} />
                       </button>
+                      <button
+                        onClick={() => setParaExcluir(f)}
+                        className="rounded-lg p-1.5 text-content-muted hover:bg-surface-2 hover:text-danger"
+                        title="Excluir"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   )}
                 </Celula>
@@ -175,6 +196,30 @@ export function FornecedoresPage() {
         aoFechar={() => setModalForm(false)}
         fornecedor={emEdicao}
       />
+
+      <Modal
+        aberto={!!paraExcluir}
+        aoFechar={() => setParaExcluir(null)}
+        titulo="Excluir fornecedor"
+        rodape={
+          <>
+            <Botao variante="secundario" onClick={() => setParaExcluir(null)}>
+              Cancelar
+            </Botao>
+            <Botao variante="perigo" onClick={confirmarExclusao}>
+              Excluir
+            </Botao>
+          </>
+        }
+      >
+        <p className="text-sm text-content">
+          Confirma a exclusão de <strong>{paraExcluir?.nome}</strong>
+          {paraExcluir?.cnpj ? <> — CNPJ {paraExcluir.cnpj}</> : null}? A ação é
+          irreversível, apaga o cadastro e fica registrada na auditoria. Se o
+          fornecedor estiver vinculado a itens de estoque, a exclusão será
+          bloqueada — nesse caso, desative-o.
+        </p>
+      </Modal>
     </div>
   )
 }

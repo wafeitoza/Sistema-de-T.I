@@ -1,6 +1,6 @@
 # PLANO DE IMPLANTAÇÃO E PONTO DE RETOMADA
 
-> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + aba Empréstimos + etiquetas/QR + Fase B)**
+> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + B + C — login e sessão reais)**
 > Leia este arquivo para continuar de onde paramos.
 
 ---
@@ -8,7 +8,7 @@
 ## 1. Estado atual do projeto
 
 **Repo:** `https://github.com/wafeitoza/Sistema-de-T.I.git` (branch `main`)
-**Produção:** https://it-stock-react.vercel.app (build `index-B1zA1uqh.js`)
+**Produção:** https://it-stock-react.vercel.app (build `index-DCdSPWso.js`, modo localStorage)
 **Diretório:** `/home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
 
 ### Commits (rodada de melhorias concluída)
@@ -26,18 +26,20 @@
 | — | `4fdf939` | Exclusão de fornecedores com bloqueio por vínculo + auditoria DELETE |
 | — | `367f004` | Nova aba **Empréstimos** (controle de equipamentos emprestados a funcionários) |
 | — | `de1d1e3` | **Etiquetas e QR com todos os dados do equipamento** + campo `configuracao` |
+| B | `18b5968` | **Fase B** — camada de dados dual (Supabase + localStorage), blocos de 50 IDs |
+| C | `fdebae4` | **Fase C** — login e-mail+senha, contas por Admin, sessão persistida |
 
 ### Qualidade (validado na última entrega)
 - `npm run lint` → **0 warnings, 0 erros**
 - `npx tsc --noEmit` → OK
-- `npm test` → **92/92** (Vitest + happy-dom, 12 arquivos)
+- `npm test` → **132/132** (Vitest + happy-dom, 15 arquivos)
 - `npm run build` → OK (`tsc -b` incluído)
 - E2E Chrome headless: local e produção com **0 erros de console**
-  (últimas rodadas: `cdp-etiquetas.mjs` 21 checks (local) · **`cdp-persistencia.mjs` 15 checks (Supabase)**)
+  (últimas rodadas: `cdp-etiquetas.mjs` 21 checks · `cdp-persistencia.mjs` 15 checks · **`cdp-login.mjs` 21 checks (Fase C, local)**)
 
 ### Estado do Git
-`main` sincronizada com `origin/main`, topo `de1d1e3`. **Fase B ainda NÃO commitada** (aguardando seu OK).
-Produção segue no build `index-B1zA1uqh.js` (modo localStorage — as env vars da Vercel ainda não foram criadas).
+`main` sincronizada com `origin/main`, topo `fdebae4` (**Fase C**).
+Produção no build `index-DCdSPWso.js` (modo localStorage) — **as env vars da Vercel ainda não foram criadas**.
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -62,11 +64,29 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 - **Testes**: novos casos em `src/lib/codes.test.ts` + arquivo `src/store/ativos.test.ts` (2 casos: `criar`/`atualizar` regravam `qrUrl`).
 - **E2E**: `/tmp/opencode/cdp-etiquetas.mjs` — 21 checks (campo no form, persistência, dados no QR, etiqueta com os 6 campos, recalculo após edição, CSS de impressão, 0 erros de console).
 
+### Funcionalidade nova (06/10/2026) — **Fase C: login e sessão reais**
+E-mail + senha no Supabase Auth; o login por card continua só no modo local (sem env vars).
+
+- **`src/data/auth.ts`** — `entrarComSenha` (mensagens de erro traduzidas), `sessaoAtual`, `trocarSenhaSupabase` (troca a senha **e** desliga `user_metadata.trocar_senha`), `sairDoSupabase`, `tokenAtual`, `mensagemAuth`.
+- **`src/store/auth.ts`** — `entrarComSenha`, `restaurarSessao`, `trocarSenha` + flag `trocarSenhaPendente`; o perfil vem do espelho `USUARIOS` (conta Auth sem perfil ativo → desloga e avisa).
+- **`LoginPage`** — no modo Supabase renderiza formulário (e-mail + senha + olho de mostrar/ocultar) e **esconde os cards**; erros exibidos em `[role=alert]`.
+- **`Layout`** — modal `TrocaSenhaObrigatoria` (não fechável) enquanto `trocarSenhaPendente`; mínimo 8 caracteres e confirmação.
+- **`main.tsx`** — `restaurarSessao()` roda **antes** de montar o `App`, senão o Layout redirecionaria pro login a cada F5.
+- **Contas (`src/data/admin.ts` → `api/usuarios.mjs`)**: criar/redefinir só pela Vercel Function (service_role nunca vai pro bundle). O navegador manda o próprio `access_token`; a função valida o chamador em `/auth/v1/user` + `usuarios` (perfil Admin e Ativo) antes de tocar no Supabase. Criar = Auth + linha em `usuarios` (com rollback da conta se o perfil falhar); `auth_id` nunca é escrito pelo navegador (`paraBanco` ignora `authId`).
+- **`UsuariosPage`** — botão **Nova senha** por linha (só Ativo) e criação de usuário chama a API; a senha provisória aparece **uma única vez** em modal com botão copiar.
+- **Riscos adiados da Fase B resolvidos:** `keepalive` no `client.ts` (F5 em até 60 KB não perde a escrita). *IDs de ATIVOS/itens de estoque continuam no cliente — ainda pendente.*
+- **Bug achado no caminho:** o GoTrue só aceita **`PUT`** em `/auth/v1/admin/users/{id}` — `PATCH` devolve **405**. Afetava `redefinir` da Function e o script de senhas; corrigido nos dois.
+- **`scripts/gerar-senhas.mjs`** — zera as senhas dos usuários (provisória + `trocar_senha=true`) lendo `SUPABASE_SERVICE_ROLE_KEY` do ambiente/`.env.local` (gitignored). Uso: `node scripts/gerar-senhas.mjs [email]`.
+- **Testes:** `auth.test.ts` (21) + `admin.test.ts` (8) + `store/auth.test.ts` (11) → **132/132**.
+- **E2E** `/tmp/opencode/cdp-login.mjs` — **21 checks, 0 falhas**: card escondido · senha errada → erro amigável · olho da senha · provisória → modal de troca bloqueante · troca → toast · F5 mantém sessão · logout · senha nova sem pedir troca · 0 erros de console (o único 4xx é o `400` esperado do login errado).
+
 ### Pendências / cuidados
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
-- ⚠️ **Criar as env vars na Vercel** (Settings → Environment Variables): `VITE_SUPABASE_URL` = `https://ftwaxhngujwswaauqfbn.supabase.co` e `VITE_SUPABASE_PUBLISHABLE_KEY` = `sb_publishable_DPdZU8GA-...` (publishable, **não** a service_role). Sem elas o build segue em modo localStorage. **Depois de criar, é preciso um redeploy** (botão *Redeploy* na Vercel ou um novo push) — as variáveis entram só no build seguinte.
-- ⚠️ Sync é *fire-and-forget*: um F5 nos ~200 ms seguintes a uma escrita pode perdê-la (candidato: `keepalive` no fetch). → **decisão do usuário: adiar para a Fase C**
-- ⚠️ IDs de `ATIVOS` (`NOTE-001`) e de itens de estoque (`Item-001`) ainda são calculados **no cliente** a partir do espelho — dois navegadores podem gerar o mesmo código e o upsert sobrescreve. As outras 11 coleções já usam blocos de sequência do servidor. → **decisão do usuário: adiar para a Fase C**
+- ⚠️ **Criar as env vars na Vercel** (Settings → Environment Variables): `VITE_SUPABASE_URL` = `https://ftwaxhngujwswaauqfbn.supabase.co` · `VITE_SUPABASE_PUBLISHABLE_KEY` = `sb_publishable_DPdZU8GA-…` · `SUPABASE_URL` (mesma URL) · `SUPABASE_PUBLISHABLE_KEY` (mesma chave) · `SUPABASE_SERVICE_ROLE_KEY` = `sb_secret_…` (as 3 últimas **sem** prefixo `VITE_`, só para a Function). Sem elas o build segue em modo localStorage. **Depois de criar: Redeploy** — as variáveis entram só no build seguinte. → **em aberto, é o próximo passo**
+- ⚠️ **E2E de produção ainda não rodou** (depende das env vars): login + `/api/usuarios` criar usuário → senha provisória → login dele → troca → redefinir → limpeza.
+- ⚠️ IDs de `ATIVOS` (`NOTE-001`) e de itens de estoque (`Item-001`) ainda são calculados **no cliente** a partir do espelho — dois navegadores podem gerar o mesmo código e o upsert sobrescreve. As outras 11 coleções usam blocos de sequência do servidor. → **adiado para depois da Fase C**
+- ⚠️ Recarregar dados ao voltar à aba/foco (item 7 da Fase B) — **ainda pendente**.
+- ⚠️ Usuário **Inativo** perde o acesso no app, mas a conta Auth continua existindo (não há `excluir` na API) — fora do escopo desta rodada.
 - Permissões vigentes em `src/lib/permissions.ts` (ACESSO_ROTA) — base para o RLS da Fase D.
 
 ---
@@ -81,18 +101,21 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 | Orçamento | **Só plano grátis** (Vercel free + Supabase free tier) |
 | Auth | **E-mail + senha** (sem MFA, sem login social) |
 
-### Por que não está pronto hoje
-- Dados em `localStorage` → **por navegador, não compartilhados entre usuários**
-- Login por card **sem senha** (basta saber o e-mail)
-- Segredo HMAC `IT-STOCK-MVP-2026` hardcoded no bundle → links de aprovação forjáveis
-- `src/data/bootstrap.ts` roda **seed de demo** em todo primeiro acesso
-- Sequências e logs de auditoria também no navegador
+### O que ainda impede o uso profissional (pós-Fase C)
+- **Produção segue em `localStorage`** (env vars da Vercel não criadas) → dados por navegador, não compartilhados
+- Segredo HMAC `IT-STOCK-MVP-2026` hardcoded no bundle → links de aprovação forjáveis (**Fase D**)
+- RLS com policy `using (true)` → qualquer cliente com a chave anon lê/escreve tudo (**Fase D**)
+- `auditoria` aceita INSERT vindo do navegador sem autenticação (**Fase D**)
+- Seed de demo continua rodando no modo local (sem env vars) — é proposital
+
+**Já resolvido nas fases B e C:** dados no Supabase (modo dual), login e-mail+senha com sessão persistida e troca obrigatória de senha provisória, contas geridas por servidor (service_role fora do bundle), sequências em blocos no servidor, seed desligado no modo Supabase, `keepalive` nas escritas.
 
 ### Arquitetura atual (relevante para a migração)
 - 11 stores Zustand **síncronos** usando `lerColecao`/`gravarColecao` de `src/data/repository.ts`:
   `ativos, auth, estoque, emprestimos, fornecedores, inventario, manutencao, movimentacoes, setores, solicitacoes, termos`
-- `src/data/repository.ts` (48 linhas) foi desenhado para ser trocado por API
-- `src/data/bootstrap.ts` executa `aplicarSeed()` antes dos stores carregarem
+- `src/data/repository.ts` (48 linhas) foi desenhada para ser trocada por API — hoje já sincroniza em background (Fase B)
+- `src/data/auth.ts` (sessão Supabase) e `src/data/admin.ts` (contas via Vercel Function) — Fase C
+- `src/data/bootstrap.ts` executa `aplicarSeed()` antes dos stores carregarem (só no modo local)
 - `src/lib/token.ts` — HMAC client-side (assinatura `${SEGREDO}|${texto}`)
 - ~15 coleções: ATIVOS, ESTOQUE, SOLICITACOES, MANUTENCOES, CONTAGENS(+ITENS), TERMOS, SETORES, FORNECEDORES, MOVIMENTACOES, EMPRESTIMOS, USUARIOS, LOG, SEQ_*
 
@@ -101,8 +124,8 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 ## 3. Plano aprovado — Implantação profissional (Supabase free tier)
 
 ### Fase A — Fundação (1º deploy) ✅ CONCLUÍDA (05/10/2026)
-1. ~~Criar projeto Supabase (grátis, 2 projetos, 500 MB, 50k MAU) + habilitar e-mail/senha~~ → **falta só sua parte: criar a conta e o projeto**
-2. ✅ Schema SQL versionado em `supabase/migrations/` (6 arquivos, ordem alfabética = ordem de execução):
+1. ✅ Projeto Supabase criado (`ftwaxhngujwswaauqfbn`) com e-mail+senha habilitado
+2. ✅ Schema SQL versionado em `supabase/migrations/` (6 iniciais + 2 das fases B/C = 8 arquivos, ordem alfabética = ordem de execução):
    - `20261005120000_esquema_inicial.sql` — 15 tabelas: `usuarios, setores, fornecedores, ativos, estoque, entradas_estoque, saidas_estoque, solicitacoes, manutencoes, contagens+contagem_itens, termos, movimentacoes, auditoria, sequencias`
    - `20261005120100_auditoria_append_only.sql` — trigger que bloqueia UPDATE/DELETE em `auditoria` (TRUNCATE liberado p/ restore) + trigger de `atualizado_em` em 10 tabelas
    - `20261005120200_sequencias.sql` — função `proxima_sequencia(nome)` (SECURITY DEFINER, mesmo contrato do `proximaSequencia()` do app) + seed das 10 sequências
@@ -111,9 +134,7 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
    - `20261006020000_ativos_configuracao.sql` — coluna opcional `ativos.configuracao` (etiqueta/QR do equipamento)
 3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
 
-**Como aplicar:** no SQL Editor do Supabase, colar os 6 arquivos em ordem (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram.
-
-**Ainda não feito da Fase A:** criar a conta/projeto Supabase (requer você) e me passar URL + anon key.
+**Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 8 migrations já estão aplicadas no banco real.**
 
 ### Fase B — Camada de dados ✅ CONCLUÍDA (06/10/2026)
 4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG com `ignoreDuplicates` / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
@@ -132,10 +153,19 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 - **Quirk descoberto:** `Descartar` é *soft delete* (`mudarStatus(…, 'Descartado')`), não apaga a linha — e o botão só aparece com a coluna de ações em modo edição
 - **Quirk**: `carregarSetores()` gera os 7 setores padrão quando o espelho está vazio (é por isso que a tabela `setores` já nasce com 7 linhas no banco)
 
-### Fase C — Login e sessão reais
-8. Login e-mail+senha (Supabase Auth); remover login por card em produção (manter só em dev)
-9. Cadastro de usuários por Admin (senha provisória → troca no 1º login); tabela `usuarios` com perfil que alimenta `permissions.ts`
-10. Sessão persistida e sincronizada com `useAuthStore`
+### Fase C — Login e sessão reais ✅ CONCLUÍDA (06/10/2026)
+8. ✅ Login e-mail+senha (Supabase Auth) — `src/data/auth.ts` + `LoginPage`; no modo Supabase **os cards de demonstração somem** (no modo local continuam)
+9. ✅ Cadastro de usuários por Admin (senha provisória → troca no 1º login) — `api/usuarios.mjs` (Vercel Function) + `src/data/admin.ts` + botão "Nova senha"; `usuarios.perfil` alimenta `permissions.ts`
+10. ✅ Sessão persistida e sincronizada com `useAuthStore` — `persistSession`/`autoRefreshToken` + `restaurarSessao()` antes do boot renderizar
+
+**Escopo extra que entrou:**
+- ✅ `keepalive` nas escritas (risco adiado da Fase B) · ❌ IDs de ATIVOS/estoque por sequência (continua pendente)
+- **8ª migration** `20261006040000_usuarios_auth_id.sql` (coluna + índice único) — **já aplicada no banco real** (os 4 usuários têm `auth_id`)
+- Contas Auth dos 4 usuários demo já criadas e vinculadas
+- `scripts/gerar-senhas.mjs` para zerar senhas de teste (service_role fora do repo)
+- **Testes:** 92 → **132** (+40 em `auth`, `admin` e `store/auth`)
+- **E2E:** `/tmp/opencode/cdp-login.mjs` — 21 checks, 0 falhas (roda sobre `npm run build` + `preview`)
+- **Fix:** GoTrue exige `PUT` (não `PATCH`) em `/auth/v1/admin/users/{id}` → 405
 
 ### Fase D — Segurança server-side
 11. Aprovação por link (RN004): trocar HMAC client-side por **UUID aleatório no banco** (`aprovacao_token` em `solicitacoes`) — sem segredo no bundle
@@ -164,15 +194,20 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 
 ### E2E (Chrome headless)
 - CDP porta **9225** (`curl http://127.0.0.1:9225/json/list`)
-- Scripts em `/tmp/opencode/cdp-*.mjs` (ex.: `cdp-etiquetas.mjs` 21 checks · `cdp-persistencia.mjs` 15 checks p/ modo Supabase)
-- **Antes de rodar**: `pkill -f "remote-debugging-port=92[2]5"` — chrome órfão de execução anterior faz o script anexar no perfil velho (login já feito + dados editados = checks falsos)
-- **Quirks**: input React → setter nativo do prototype + `Event('input',{bubbles:true})`; select → setter de HTMLSelectElement + `Event('change')`; screenshot → repaint zoom 1.01/1.0 + `bringToFront`; modal `[role=dialog]`; leitura de imagem stale → contornar com `magick <file> -crop WxH+X+Y` antes do Read; `window.print()` é no-op no headless
+- Scripts em `/tmp/opencode/cdp-*.mjs` (ex.: `cdp-login.mjs` 21 checks · `cdp-etiquetas.mjs` 21 · `cdp-persistencia.mjs` 15)
+- ⚠️ `/tmp` é limpo entre sessões — **os scripts precisam ser reescritos** quando isso acontece
+- **Antes de rodar**: `pkill -f "remote-debugging-port=92[2]5"` em um comando **separado** (se o mesmo comando também lançar o Chrome, o `pkill` mata o próprio shell) — chrome órfão de execução anterior faz o script anexar no perfil velho (login já feito + dados editados = checks falsos)
+- **Chrome**: `google-chrome --headless=new --no-sandbox --remote-debugging-port=9225 --user-data-dir=/tmp/opencode/chrome-perfil --window-size=1400,900 about:blank`
+- **Quirks**: input React → setter nativo do prototype + `Event('input',{bubbles:true})`; select → setter de HTMLSelectElement + `Event('change')`; modal `[role=dialog]`; logout → botão `[aria-label="Sair"]` (sidebar fica no DOM mesmo oculta); `window.print()` é no-op no headless
+- **Ruído aceito no login**: a tentativa de senha errada gera `400` em `/auth/v1/token` (e o Chrome loga "Failed to load resource") — o script filtra só esse caso e falha para qualquer outra 4xx/5xx
 - Validar deploy: hash de `dist/assets/index-*.js` == `<script>` de `https://it-stock-react.vercel.app/`
 
 ### Datas e segurança
 - Campos editáveis em `DD/MM/YYYY`; `criadoEm`/`dataHora` ISO; usar `formatarData`/`diasAte`/`dataBRparaDate` (`src/lib/format.ts`)
 - `localStorage` prefixo `ITSTOCK_*`; guard `ITSTOCK_SEEDED`; sessão `ITSTOCK_SESSAO`
-- Login demo: `admin@/gerente@/tecnico@/viewer@empresa.com` (cards)
+- Login demo: `admin@/gerente@/tecnico@/viewer@empresa.com` (cards — só modo local)
+- **Supabase Auth**: senha provisória `Itstock-XXXXXXXX` + `user_metadata.trocar_senha`; zerar com `node scripts/gerar-senhas.mjs [email]` (lê `SUPABASE_SERVICE_ROLE_KEY` do `.env.local`, que é gitignored)
+- **GoTrue = `PUT`** em `/auth/v1/admin/users/{id}` (`PATCH` → 405); criar = `POST /auth/v1/admin/users`; excluir = `DELETE …/admin/users/{id}`
 
 ### Padrões de código adotados
 - Anti-warning de estado na renderização: `const [abertoAnterior, setAbertoAnterior] = useState(aberto); if (aberto !== abertoAnterior) { setAbertoAnterior(aberto); if (aberto) {...sets} }` — usado em todos os modais de form
@@ -184,18 +219,19 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 ## 5. Como retomar (checklist)
 
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
-2. `git status` + `git log --oneline -3` → deve estar limpo, topo `de1d1e3` (ou posterior)
+2. `git status` + `git log --oneline -3` → deve estar limpo, topo `fdebae4` (Fase C) ou posterior
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
-4. **Próximo passo:** Fase B está pronta mas **não commitada** → me dá o OK para commit/push
-   → e cria na Vercel as env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY`
-   (depois disso: *Redeploy* para o build pegar as variáveis) → eu valido o E2E de produção em modo Supabase
-   → **Fase C** (login e-mail+senha) e nela os 2 riscos adiados (keepalive + IDs por sequência)
+4. **Próximo passo:** você cria na Vercel as 5 env vars (3 do frontend + 3 da Function, ver Pendências) e clica **Redeploy**
+   → eu valido o E2E de produção: hash do bundle · login com senha provisória · troca · `/api/usuarios` (criar usuário → senha provisória → login dele → troca → redefinir) → limpeza
+   → **Fase D** (aprovação por UUID no banco + RLS por perfil + validações críticas)
 5. Rodar validação sempre: `npm run lint && npx tsc --noEmit && npm test && npm run build`
-6. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
-   (rebuild obrigatório antes do E2E: `npm run build` e `npm run preview` na 4173)
-7. Ao final: revogar token da Vercel
+6. E2E local sempre que mexer em login/dados: `npm run build` + `npm run preview` (4173) + Chrome na 9225 + `node /tmp/opencode/cdp-login.mjs "<provisória>"`
+7. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
+8. Ao final: revogar token da Vercel
 
 ### Pendências conhecidas
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys.
+- ⚠️ **Env vars da Vercel + E2E de produção** — enquanto não existir, produção roda em localStorage e `/api/usuarios` responde 500.
 - ⚠️ RLS está com policy temporária `using (true)` (acesso geral) — **obrigatório resolver na Fase D** antes de dados reais.
-- ⚠️ `auditoria` hoje aceita INSERT vindo do navegador (sem autenticação) — aceitável só até a Fase C.
+- ⚠️ `auditoria` hoje aceita INSERT vindo do navegador (sem autenticação) — **resolver na Fase D** (a Fase C autentica o app, mas não o RLS).
+- ⚠️ IDs de `ATIVOS` e de itens de estoque calculados no cliente; recarregar ao voltar à aba/foco; conta Auth de usuário Inativo não é excluída — pós-Fase C.

@@ -96,6 +96,9 @@ export function paraBanco(colecao: string, registro: Linha): Linha {
   for (const [chave, valor] of Object.entries(registro)) {
     if (valor === undefined) continue
     if (colecao === 'CONTAGENS' && chave === 'itens') continue
+    // auth_id só nasce na API do servidor (api/usuarios.mjs); o navegador
+    // nunca escreve — evita apagar o vínculo com a conta de acesso.
+    if (colecao === 'USUARIOS' && chave === 'authId') continue
     saida[paraChaveBanco(chave)] = valorParaBanco(valor)
   }
   return saida

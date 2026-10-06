@@ -1,5 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { Camera, Pencil, Plus, Search } from 'lucide-react'
+import { Camera, KeyRound, Pencil, Plus, Search } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { AjusteFoto } from '../../components/ui/AjusteFoto'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
@@ -11,6 +11,8 @@ import { Modal } from '../../components/ui/Modal'
 import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { CabecalhoTabela, Celula, Linha, Tabela } from '../../components/ui/Tabela'
+import { criarConta, redefinirConta } from '../../data/admin'
+import { modoSupabase } from '../../data/client'
 import { gravarColecao, lerColecao } from '../../data/repository'
 import { calcularDiff, registrarLog } from '../../lib/audit'
 import { redimensionarImagem } from '../../lib/image'
@@ -54,6 +56,12 @@ export function UsuariosPage() {
   })
   const [ajustando, setAjustando] = useState(false)
   const [fotoPreview, setFotoPreview] = useState<string | undefined>(undefined)
+  const [enviando, setEnviando] = useState(false)
+  const [senhaProvisoria, setSenhaProvisoria] = useState<{
+    email: string
+    senha: string
+  } | null>(null)
+  const [copiada, setCopiada] = useState(false)
 
   const { ord, ordenar } = useOrdenacao('nome')
 
@@ -160,8 +168,8 @@ export function UsuariosPage() {
     }
   }
 
-  function salvar() {
-    if (alvo === null) return
+  async function salvar() {
+    if (alvo === null || enviando) return
     const lista = lerColecao<Usuario>('USUARIOS')
     const novosErros: Record<string, string> = {}
 
@@ -191,6 +199,24 @@ export function UsuariosPage() {
         telefone: form.telefone.trim() || undefined,
         foto: form.foto,
       }
+
+      // No modo Supabase a conta (auth) só nasce pela API do servidor.
+      if (modoSupabase) {
+        setEnviando(true)
+        const r = await criarConta({
+          nome: novo.nome,
+          email,
+          perfil: novo.perfil,
+          setor: novo.setor,
+        })
+        setEnviando(false)
+        if (!r.ok) {
+          setErros({ email: r.erro ?? 'Não foi possível criar o usuário' })
+          return
+        }
+        setSenhaProvisoria({ email, senha: r.senhaProvisoria ?? '' })
+      }
+
       gravarColecao('USUARIOS', [...lista, novo])
       registrarLog({
         usuario: usuario?.email ?? 'desconhecido',
@@ -241,6 +267,19 @@ export function UsuariosPage() {
     )
     notificar('sucesso', `Perfil de ${depois.nome} atualizado com sucesso`)
     fechar()
+  }
+
+  async function pedirNovaSenha(u: Usuario) {
+    if (enviando) return
+    setEnviando(true)
+    const r = await redefinirConta(u.email)
+    setEnviando(false)
+    if (!r.ok) {
+      notificar('erro', r.erro ?? 'Não foi possível redefinir a senha')
+      return
+    }
+    setCopiada(false)
+    setSenhaProvisoria({ email: u.email, senha: r.senhaProvisoria ?? '' })
   }
 
   return (
@@ -323,13 +362,26 @@ export function UsuariosPage() {
                   <BadgeStatus status={u.status} />
                 </Celula>
                 <Celula className="text-right">
-                  <Botao
-                    tamanho="sm"
-                    variante="secundario"
-                    onClick={() => abrir(u)}
-                  >
-                    <Pencil size={14} /> Editar
-                  </Botao>
+                  <div className="flex justify-end gap-2">
+                    {modoSupabase && u.status === 'Ativo' && (
+                      <Botao
+                        tamanho="sm"
+                        variante="secundario"
+                        disabled={enviando}
+                        onClick={() => pedirNovaSenha(u)}
+                        title="Gera uma nova senha provisória para esta conta"
+                      >
+                        <KeyRound size={14} /> Nova senha
+                      </Botao>
+                    )}
+                    <Botao
+                      tamanho="sm"
+                      variante="secundario"
+                      onClick={() => abrir(u)}
+                    >
+                      <Pencil size={14} /> Editar
+                    </Botao>
+                  </div>
                 </Celula>
               </Linha>
             ))}
@@ -359,6 +411,36 @@ export function UsuariosPage() {
       )}
 
       <Modal
+        aberto={senhaProvisoria !== null}
+        aoFechar={() => setSenhaProvisoria(null)}
+        titulo="Senha provisória gerada"
+        rodape={
+          <Botao onClick={() => setSenhaProvisoria(null)}>Já anotei</Botao>
+        }
+      >
+        <p className="mb-3 text-sm text-content">
+          Envie esta senha para <strong>{senhaProvisoria?.email}</strong>. Ela
+          aparece <strong>uma única vez</strong>: na primeira entrada o sistema
+          obriga a trocar por uma senha própria.
+        </p>
+        <div className="flex items-center gap-2 rounded-lg border border-dashed border-primary/50 bg-primary-light/40 px-3 py-2.5">
+          <code className="flex-1 break-all font-mono text-sm font-semibold text-content">
+            {senhaProvisoria?.senha}
+          </code>
+          <Botao
+            tamanho="sm"
+            variante="secundario"
+            onClick={() => {
+              void navigator.clipboard.writeText(senhaProvisoria?.senha ?? '')
+              setCopiada(true)
+            }}
+          >
+            {copiada ? 'Copiada' : 'Copiar'}
+          </Botao>
+        </div>
+      </Modal>
+
+      <Modal
         aberto={alvo !== null}
         aoFechar={() => (ajustando ? fecharAjuste() : fechar())}
         titulo={
@@ -378,7 +460,15 @@ export function UsuariosPage() {
               <Botao variante="secundario" onClick={fechar}>
                 Cancelar
               </Botao>
-              <Botao onClick={salvar}>{criando ? 'Criar usuário' : 'Salvar'}</Botao>
+              <Botao onClick={salvar} disabled={enviando}>
+                {enviando
+                  ? 'Aguarde…'
+                  : criando
+                    ? modoSupabase
+                      ? 'Criar usuário e conta'
+                      : 'Criar usuário'
+                    : 'Salvar'}
+              </Botao>
             </>
           )
         }

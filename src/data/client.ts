@@ -15,6 +15,23 @@ export const modoSupabase =
 
 let unico: SupabaseClient | null = null
 
+/**
+ * O navegador recusa `keepalive` com body acima de ~64 KB; abaixo disso ele
+ * mantém a requisição viva mesmo quando a página descarrega (F5 no meio de um
+ * sync). Sem isso, um refresh 200 ms depois de salvar perdia a escrita.
+ */
+const LIMITE_KEEPALIVE = 60_000
+
+const fetchComKeepalive: typeof fetch = (entrada, init) => {
+  const metodo = (init?.method ?? 'GET').toUpperCase()
+  const corpo = typeof init?.body === 'string' ? init.body.length : 0
+  const gravacao = metodo !== 'GET' && metodo !== 'HEAD'
+  return fetch(entrada, {
+    ...init,
+    keepalive: gravacao && corpo < LIMITE_KEEPALIVE,
+  })
+}
+
 /** Cliente único. Só existe sentido chamar quando `modoSupabase` é true. */
 export function cliente(): SupabaseClient {
   if (!URL || !CHAVE) {
@@ -22,9 +39,12 @@ export function cliente(): SupabaseClient {
   }
   if (!unico) {
     unico = createClient(URL, CHAVE, {
-      // Auth chega na Fase C; por enquanto usamos só PostgREST/RPC.
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { 'x-client-info': 'it-stock-web' } },
+      // Sessão de e-mail+senha persistida (localStorage) + renovação automática.
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      global: {
+        headers: { 'x-client-info': 'it-stock-web' },
+        fetch: fetchComKeepalive,
+      },
     })
   }
   return unico

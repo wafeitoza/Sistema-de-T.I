@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { iniciar } from './data/bootstrap'
 import { modoSupabase } from './data/client'
+import { useAuthStore } from './store/auth'
 import './index.css'
 
 const raiz = createRoot(document.getElementById('root')!)
@@ -19,6 +20,15 @@ if (modoSupabase) {
 void iniciar()
   .catch((erro) => console.error('bootstrap:', erro))
   .finally(async () => {
+    // Restaura a sessão Supabase (e-mail+senha) antes do Layout redirecionar
+    // para o login. No modo local a sessão já vem do localStorage.
+    if (modoSupabase) {
+      try {
+        await useAuthStore.getState().restaurarSessao()
+      } catch (erro) {
+        console.error('sessão:', erro)
+      }
+    }
     const { default: App } = await import('./App.tsx')
     raiz.render(
       <StrictMode>

@@ -8,7 +8,7 @@
 ## 1. Estado atual do projeto
 
 **Repo:** `https://github.com/wafeitoza/Sistema-de-T.I.git` (branch `main`)
-**Produção:** https://it-stock-react.vercel.app (build `index-DoxXFUG6.js`)
+**Produção:** https://it-stock-react.vercel.app (build `index-B1zA1uqh.js`)
 **Diretório:** `/home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
 
 ### Commits (rodada de melhorias concluída)
@@ -25,7 +25,7 @@
 | A | `9fa928e` | Migrations SQL do Supabase em `supabase/migrations/` (15 tabelas, RLS, auditoria append-only) |
 | — | `4fdf939` | Exclusão de fornecedores com bloqueio por vínculo + auditoria DELETE |
 | — | `367f004` | Nova aba **Empréstimos** (controle de equipamentos emprestados a funcionários) |
-| — | *(a commitar)* | **Etiquetas e QR com todos os dados do equipamento** + campo `configuracao` |
+| — | `de1d1e3` | **Etiquetas e QR com todos os dados do equipamento** + campo `configuracao` |
 
 ### Qualidade (validado na última entrega)
 - `npm run lint` → **0 warnings, 0 erros**
@@ -36,7 +36,7 @@
   (últimas rodadas: `cdp-emprestimos.mjs` 34 checks · `cdp-etiquetas.mjs` 21 checks)
 
 ### Estado do Git
-`main` sincronizada com `origin/main`; **pendente de commit**: etiquetas/QR + campo `configuracao` + este documento.
+`main` sincronizada com `origin/main`, topo `de1d1e3`, **deploy na Vercel validado** (hash igual ao `dist/` + E2E 21/21 em produção). Nada pendente de commit.
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -169,7 +169,7 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 ## 5. Como retomar (checklist)
 
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
-2. `git status` + `git log --oneline -3` → deve estar limpo, topo `367f004` ou posterior
+2. `git status` + `git log --oneline -3` → deve estar limpo, topo `de1d1e3` (ou posterior)
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
 4. **Próximo passo:** você cria a conta e o projeto Supabase → me passa `SUPABASE_URL` + `SUPABASE_ANON_KEY`
    → eu aplico as migrations (SQL Editor ou CLI) e começo a **Fase B** (`src/data/api.ts`)

@@ -1,5 +1,13 @@
 import { diasAte, formatarData } from './format'
-import type { Contagem, ItemEstoque, Manutencao, Perfil, Solicitacao } from '../types'
+import { podeAcessarRota } from './permissions'
+import type {
+  Contagem,
+  Emprestimo,
+  ItemEstoque,
+  Manutencao,
+  Perfil,
+  Solicitacao,
+} from '../types'
 
 export interface Alerta {
   id: string
@@ -18,6 +26,7 @@ export interface DadosAlertas {
   manutencoes: Manutencao[]
   solicitacoes: Solicitacao[]
   contagens: Contagem[]
+  emprestimos?: Emprestimo[]
 }
 
 export function calcularAlertas(
@@ -90,6 +99,30 @@ export function calcularAlertas(
         rota: '/inventario',
         tom: 'info',
       })
+    }
+  }
+
+  if (perfil && podeAcessarRota('/emprestimos', perfil)) {
+    for (const e of dados.emprestimos ?? []) {
+      if (e.status !== 'Em aberto') continue
+      const dias = diasAte(e.previsaoDevolucao)
+      if (dias !== null && dias < 0) {
+        alertas.push({
+          id: `emprestimo:${e.id}:atrasado`,
+          titulo: 'Empréstimo atrasado',
+          descricao: `${e.codigoAtivo} — ${e.funcionario} (prevista para ${formatarData(e.previsaoDevolucao)})`,
+          rota: '/emprestimos',
+          tom: 'danger',
+        })
+      } else if (dias !== null && dias <= 2) {
+        alertas.push({
+          id: `emprestimo:${e.id}:vencendo`,
+          titulo: 'Devolução de empréstimo próxima',
+          descricao: `${e.codigoAtivo} — ${e.funcionario} (prevista para ${formatarData(e.previsaoDevolucao)})`,
+          rota: '/emprestimos',
+          tom: 'warning',
+        })
+      }
     }
   }
 

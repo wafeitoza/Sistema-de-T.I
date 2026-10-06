@@ -29,6 +29,10 @@ const MAPA_STATUS: Record<string, Tom> = {
   Pendente: 'warning',
   Confirmada: 'success',
   'Em andamento': 'info',
+  'Em aberto': 'info',
+  Devolvido: 'success',
+  Cancelado: 'neutral',
+  Atrasado: 'danger',
 }
 
 export function tomDoStatus(status: string): Tom {

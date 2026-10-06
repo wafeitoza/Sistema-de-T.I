@@ -1,6 +1,6 @@
 # PLANO DE IMPLANTAÇÃO E PONTO DE RETOMADA
 
-> Documento de continuidade — **última atualização: 05/10/2026 (Fase A concluída)**
+> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + aba Empréstimos)**
 > Leia este arquivo para continuar de onde paramos.
 
 ---
@@ -22,17 +22,32 @@
 | 5 | `7fdda6e` | Setores, fornecedores, movimentações (RN006), sidebar em seções |
 | 6 | `972ad00` | Vitest (55 testes), lint 0 warnings, dead code, README, badge "Em andamento" |
 | — | `8474564` | Recorte de foto (zoom + arrastar) no modal de usuários |
-| A | *(a commitar)* | Migrations SQL do Supabase em `supabase/migrations/` |
+| A | `9fa928e` | Migrations SQL do Supabase em `supabase/migrations/` (15 tabelas, RLS, auditoria append-only) |
+| — | `4fdf939` | Exclusão de fornecedores com bloqueio por vínculo + auditoria DELETE |
+| — | *(a commitar)* | Nova aba **Empréstimos** (controle de equipamentos emprestados a funcionários) |
 
-### Qualidade (validado em `972ad00`)
+### Qualidade (validado na última entrega)
 - `npm run lint` → **0 warnings, 0 erros**
 - `npx tsc --noEmit` → OK
-- `npm test` → **55/55** (Vitest + happy-dom)
+- `npm test` → **67/67** (Vitest + happy-dom, 8 arquivos)
 - `npm run build` → OK
 - E2E Chrome headless: local e produção com **0 erros de console**
 
 ### Estado do Git
-`main` sincronizada com `origin/main`; **pendente de commit**: `supabase/migrations/` (4 arquivos) + atualização deste documento.
+`main` sincronizada com `origin/main`; **pendente de commit**: aba Empréstimos (13 arquivos) + este documento.
+
+### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
+Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
+
+- **Modelo**: `Emprestimo` (`src/types/index.ts`) — `id EMP-2026-NNNNNN`, `codigoAtivo` (FK lógica p/ `Ativo.codigo`), funcionário/matrícula/setor em **texto livre**, `dataEmprestimo`/`previsaoDevolucao`/`dataDevolucao` em `DD/MM/AAAA`, `status: 'Em aberto' | 'Devolvido' | 'Cancelado'`.
+- **Regras** (`src/store/emprestimos.ts`): não empresta ativo `Descartado` nem item já com empréstimo **Em aberto** (mensagem diz para quem); nome ≥ 3 letras; setor obrigatório; `previsao >= data`; devolução grava `dataDevolucao = hoje` + `devolvidoPor`; **cancelar** só Admin/Gerente (correção de lançamento). Tudo com log de auditoria `tabela = EMPRESTIMOS`.
+- **O empréstimo NÃO altera o Ativo** (decisão do usuário): status/setor/responsável ficam como estão.
+- **UI** (`src/pages/emprestimos/`): cards de Resumo (Em aberto / **Atrasados** / Devolvidos / Total), chips de filtro incluindo *Atrasado*, busca, tabela com prazo ("em N dia(s)" / "atrasada"), badge `Atrasado`, modais de novo empréstimo, devolução (observação do estado) e cancelamento.
+- **Alertas**: `src/lib/notificacoes.ts` ganhou `dados.emprestimos` → "Empréstimo atrasado" (danger) e "Devolução próxima" (warning), só para perfis com acesso à rota.
+- **Seed**: 3 empréstimos (1 em aberto, 1 atrasado, 1 devolvido) + `ITSTOCK_SEQ_EMP`.
+- **Backup**: `EMPRESTIMOS` em `COLECOES_BACKUP`, `EMP` em `SEQUENCIAS_BACKUP`.
+- **Testes**: `src/store/emprestimos.test.ts` (8 casos) — 67/67 no total.
+- **E2E**: `/tmp/opencode/cdp-emprestimos.mjs` — 34 checks (menu, cards, filtros, criação, bloqueio, devolução, cancelamento, auditoria, 0 erros de console).
 
 ### Pendências / cuidados
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
@@ -59,12 +74,12 @@
 - Sequências e logs de auditoria também no navegador
 
 ### Arquitetura atual (relevante para a migração)
-- 10 stores Zustand **síncronos** usando `lerColecao`/`gravarColecao` de `src/data/repository.ts`:
-  `ativos, auth, estoque, fornecedores, inventario, manutencao, movimentacoes, setores, solicitacoes, termos`
+- 11 stores Zustand **síncronos** usando `lerColecao`/`gravarColecao` de `src/data/repository.ts`:
+  `ativos, auth, estoque, emprestimos, fornecedores, inventario, manutencao, movimentacoes, setores, solicitacoes, termos`
 - `src/data/repository.ts` (48 linhas) foi desenhado para ser trocado por API
 - `src/data/bootstrap.ts` executa `aplicarSeed()` antes dos stores carregarem
 - `src/lib/token.ts` — HMAC client-side (assinatura `${SEGREDO}|${texto}`)
-- ~14 coleções: ATIVOS, ESTOQUE, SOLICITACOES, MANUTENCOES, CONTAGENS(+ITENS), TERMOS, SETORES, FORNECEDORES, MOVIMENTACOES, USUARIOS, LOG, SEQ_*
+- ~15 coleções: ATIVOS, ESTOQUE, SOLICITACOES, MANUTENCOES, CONTAGENS(+ITENS), TERMOS, SETORES, FORNECEDORES, MOVIMENTACOES, EMPRESTIMOS, USUARIOS, LOG, SEQ_*
 
 ---
 
@@ -77,15 +92,16 @@
    - `20261005120100_auditoria_append_only.sql` — trigger que bloqueia UPDATE/DELETE em `auditoria` (TRUNCATE liberado p/ restore) + trigger de `atualizado_em` em 10 tabelas
    - `20261005120200_sequencias.sql` — função `proxima_sequencia(nome)` (SECURITY DEFINER, mesmo contrato do `proximaSequencia()` do app) + seed das 10 sequências
    - `20261005120300_rls_e_privilegios.sql` — RLS **ligado em todas as tabelas** com policy temporária `using (true)` (Fase D substitui por perfil); `auditoria` = SELECT+INSERT; `sequencias` = SELECT só (escrita só via RPC)
+   - `20261006010000_emprestimos.sql` — tabela `emprestimos` da nova aba (FK p/ `ativos`, `previsao >= data`, `unique` de empréstimo em aberto por ativo, trigger de `atualizado_em`, sequência `EMP`, RLS ligado junto com a tabela)
 3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
 
-**Como aplicar:** no SQL Editor do Supabase, colar os 4 arquivos em ordem (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram.
+**Como aplicar:** no SQL Editor do Supabase, colar os 5 arquivos em ordem (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram.
 
 **Ainda não feito da Fase A:** criar a conta/projeto Supabase (requer você) e me passar URL + anon key.
 
 ### Fase B — Camada de dados (maior bloco)
 4. Novo `src/data/api.ts`: **carrega todas as coleções no boot** (paralelo); cada mutação vira `upsert`/`delete` assíncrono — stores mantêm lógica síncrona em memória
-5. Refatorar os 10 stores para o novo adapter (padrão único em `persistir()`)
+5. Refatorar os 11 stores para o novo adapter (padrão único em `persistir()`)
 6. **Remover seed em produção** (`import.meta.env.PROD`); instância começa zerada
 7. Recarregar ao voltar à aba/foco (refletir ações de outros usuários)
 
@@ -140,7 +156,7 @@
 ## 5. Como retomar (checklist)
 
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
-2. `git status` + `git log --oneline -3` → deve estar limpo, topo `8474564` (ou posterior)
+2. `git status` + `git log --oneline -3` → deve estar limpo, topo `4fdf939` (ou posterior)
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
 4. **Próximo passo:** você cria a conta e o projeto Supabase → me passa `SUPABASE_URL` + `SUPABASE_ANON_KEY`
    → eu aplico as migrations (SQL Editor ou CLI) e começo a **Fase B** (`src/data/api.ts`)

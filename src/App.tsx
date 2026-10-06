@@ -8,6 +8,7 @@ import { ConfiguracoesPage } from './pages/config/ConfiguracoesPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { RelatoriosPage } from './pages/relatorios/RelatoriosPage'
 import { EstoquePage } from './pages/estoque/EstoquePage'
+import { EmprestimosPage } from './pages/emprestimos/EmprestimosPage'
 import { InventarioPage } from './pages/inventario/InventarioPage'
 import { LoginPage } from './pages/LoginPage'
 import { ManutencaoPage } from './pages/manutencao/ManutencaoPage'
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/solicitacoes" element={<SolicitacoesPage />} />
           <Route path="/movimentacoes" element={<MovimentacoesPage />} />
+          <Route path="/emprestimos" element={<EmprestimosPage />} />
           <Route path="/setores" element={<SetoresPage />} />
           <Route path="/fornecedores" element={<FornecedoresPage />} />
           <Route path="/termos" element={<TermosPage />} />

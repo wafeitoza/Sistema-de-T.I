@@ -1,8 +1,10 @@
 import { gravarColecao } from './repository'
 import { urlQRCode } from '../lib/codes'
+import { hojeBR, somarDiasBR } from '../lib/format'
 import type {
   Ativo,
   Contagem,
+  Emprestimo,
   Entrada,
   Fornecedor,
   ItemEstoque,
@@ -395,9 +397,54 @@ const MOVIMENTACOES: Movimentacao[] = [
   },
 ]
 
+const EMPRESTIMOS: Emprestimo[] = [
+  {
+    id: 'EMP-2026-000001',
+    codigoAtivo: 'MON-001',
+    funcionario: 'Mariana Costa',
+    matricula: '1042',
+    setor: 'Vendas',
+    dataEmprestimo: somarDiasBR(hojeBR(), -3),
+    previsaoDevolucao: somarDiasBR(hojeBR(), 4),
+    observacaoEmprestimo: 'Home office por 1 semana.',
+    status: 'Em aberto',
+    registradoPor: 'gerente@empresa.com',
+    criadoEm: '2026-10-02T13:00:00.000Z',
+    atualizadoEm: '2026-10-02T13:00:00.000Z',
+  },
+  {
+    id: 'EMP-2026-000002',
+    codigoAtivo: 'MOU-001',
+    funcionario: 'Rafael Lima',
+    matricula: '1187',
+    setor: 'Diretoria',
+    dataEmprestimo: somarDiasBR(hojeBR(), -21),
+    previsaoDevolucao: somarDiasBR(hojeBR(), -2),
+    status: 'Em aberto',
+    registradoPor: 'admin@empresa.com',
+    criadoEm: '2026-09-14T13:00:00.000Z',
+    atualizadoEm: '2026-09-14T13:00:00.000Z',
+  },
+  {
+    id: 'EMP-2026-000003',
+    codigoAtivo: 'WEB-001',
+    funcionario: 'Juliana Prado',
+    matricula: '0983',
+    setor: 'Recursos Humanos',
+    dataEmprestimo: somarDiasBR(hojeBR(), -40),
+    previsaoDevolucao: somarDiasBR(hojeBR(), -33),
+    dataDevolucao: somarDiasBR(hojeBR(), -34),
+    observacaoDevolucao: 'Devolvida sem avarias, com cabo original.',
+    status: 'Devolvido',
+    registradoPor: 'gerente@empresa.com',
+    devolvidoPor: 'gerente@empresa.com',
+    criadoEm: '2026-08-26T13:00:00.000Z',
+    atualizadoEm: '2026-09-01T13:00:00.000Z',
+  },
+]
+
 export function aplicarSeed(): void {
   if (localStorage.getItem('ITSTOCK_SEEDED') === 'true') return
-
   gravarColecao<Usuario>('USUARIOS', USUARIOS)
   ATIVOS.forEach((a, i) => {
     if (!a.tombamento) a.tombamento = `TOM-${String(i + 1).padStart(6, '0')}`
@@ -420,6 +467,7 @@ export function aplicarSeed(): void {
     })),
   )
   gravarColecao<Movimentacao>('MOVIMENTACOES', MOVIMENTACOES)
+  gravarColecao<Emprestimo>('EMPRESTIMOS', EMPRESTIMOS)
 
   localStorage.setItem('ITSTOCK_SEQ_LOG', '0')
   localStorage.setItem('ITSTOCK_SEQ_SOL', '4')
@@ -429,6 +477,7 @@ export function aplicarSeed(): void {
   localStorage.setItem('ITSTOCK_SEQ_INV', '1')
   localStorage.setItem('ITSTOCK_SEQ_FOR', '5')
   localStorage.setItem('ITSTOCK_SEQ_MOV', '1')
+  localStorage.setItem('ITSTOCK_SEQ_EMP', '3')
   localStorage.setItem('ITSTOCK_SEQ_SET', '0')
   localStorage.setItem('ITSTOCK_SEEDED', 'true')
 }

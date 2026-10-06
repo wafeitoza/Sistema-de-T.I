@@ -68,6 +68,27 @@ export interface Movimentacao {
   canceladoPor?: string
 }
 
+export type StatusEmprestimo = 'Em aberto' | 'Devolvido' | 'Cancelado'
+
+export interface Emprestimo {
+  id: string
+  codigoAtivo: string
+  funcionario: string
+  matricula?: string
+  setor: string
+  dataEmprestimo: string
+  previsaoDevolucao: string
+  dataDevolucao?: string
+  observacaoEmprestimo?: string
+  observacaoDevolucao?: string
+  status: StatusEmprestimo
+  registradoPor: string
+  devolvidoPor?: string
+  canceladoPor?: string
+  criadoEm: string
+  atualizadoEm: string
+}
+
 export type StatusEstoque = 'Normal' | 'Baixo' | 'Zerado'
 
 export interface ItemEstoque {

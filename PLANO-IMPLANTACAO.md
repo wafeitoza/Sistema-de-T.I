@@ -1,6 +1,6 @@
 # PLANO DE IMPLANTAÇÃO E PONTO DE RETOMADA
 
-> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + aba Empréstimos + etiquetas/QR)**
+> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + aba Empréstimos + etiquetas/QR + Fase B)**
 > Leia este arquivo para continuar de onde paramos.
 
 ---
@@ -30,13 +30,14 @@
 ### Qualidade (validado na última entrega)
 - `npm run lint` → **0 warnings, 0 erros**
 - `npx tsc --noEmit` → OK
-- `npm test` → **72/72** (Vitest + happy-dom, 9 arquivos)
-- `npm run build` → OK
+- `npm test` → **92/92** (Vitest + happy-dom, 12 arquivos)
+- `npm run build` → OK (`tsc -b` incluído)
 - E2E Chrome headless: local e produção com **0 erros de console**
-  (últimas rodadas: `cdp-emprestimos.mjs` 34 checks · `cdp-etiquetas.mjs` 21 checks)
+  (últimas rodadas: `cdp-etiquetas.mjs` 21 checks (local) · **`cdp-persistencia.mjs` 15 checks (Supabase)**)
 
 ### Estado do Git
-`main` sincronizada com `origin/main`, topo `de1d1e3`, **deploy na Vercel validado** (hash igual ao `dist/` + E2E 21/21 em produção). Nada pendente de commit.
+`main` sincronizada com `origin/main`, topo `de1d1e3`. **Fase B ainda NÃO commitada** (aguardando seu OK).
+Produção segue no build `index-B1zA1uqh.js` (modo localStorage — as env vars da Vercel ainda não foram criadas).
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -63,7 +64,9 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 
 ### Pendências / cuidados
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
-- ⚠️ Criar a conta/projeto Supabase e me passar URL + anon key (bloqueio da Fase B).
+- ⚠️ **Criar as env vars na Vercel** (Settings → Environment Variables): `VITE_SUPABASE_URL` = `https://ftwaxhngujwswaauqfbn.supabase.co` e `VITE_SUPABASE_PUBLISHABLE_KEY` = `sb_publishable_DPdZU8GA-...` (publishable, **não** a service_role). Sem elas o build segue em modo localStorage. **Depois de criar, é preciso um redeploy** (botão *Redeploy* na Vercel ou um novo push) — as variáveis entram só no build seguinte.
+- ⚠️ Sync é *fire-and-forget*: um F5 nos ~200 ms seguintes a uma escrita pode perdê-la (candidato: `keepalive` no fetch). → **decisão do usuário: adiar para a Fase C**
+- ⚠️ IDs de `ATIVOS` (`NOTE-001`) e de itens de estoque (`Item-001`) ainda são calculados **no cliente** a partir do espelho — dois navegadores podem gerar o mesmo código e o upsert sobrescreve. As outras 11 coleções já usam blocos de sequência do servidor. → **decisão do usuário: adiar para a Fase C**
 - Permissões vigentes em `src/lib/permissions.ts` (ACESSO_ROTA) — base para o RLS da Fase D.
 
 ---
@@ -112,11 +115,22 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 
 **Ainda não feito da Fase A:** criar a conta/projeto Supabase (requer você) e me passar URL + anon key.
 
-### Fase B — Camada de dados (maior bloco)
-4. Novo `src/data/api.ts`: **carrega todas as coleções no boot** (paralelo); cada mutação vira `upsert`/`delete` assíncrono — stores mantêm lógica síncrona em memória
-5. Refatorar os 11 stores para o novo adapter (padrão único em `persistir()`)
-6. **Remover seed em produção** (`import.meta.env.PROD`); instância começa zerada
-7. Recarregar ao voltar à aba/foco (refletir ações de outros usuários)
+### Fase B — Camada de dados ✅ CONCLUÍDA (06/10/2026)
+4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG com `ignoreDuplicates` / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
+5. ✅ **Os 11 stores não mudaram**: `src/data/repository.ts` manteve o contrato síncrono — grava o espelho na hora e dispara o sync em background (falha → toast de erro). Menos risco que refatorar stores.
+6. ✅ Seed só no modo local — `bootstrap.iniciar()` virou assíncrono e o `main.tsx` monta o `App` só depois dele; no modo Supabase ele baixa as tabelas e **não** aplica seed (instância começa zerada, exceto os 4 usuários demo)
+7. ❌ Recarregar ao voltar à aba/foco — **ainda pendente**
+
+**Modo dual (decisão sua):** sem `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` o app roda 100% localStorage (seed/demo inclusive); com as variáveis liga o Supabase. `src/data/client.ts` exporta `modoSupabase` e o **modo `test` é bloqueado de propósito** — o Vitest carrega o `.env.local`, sem a trava os testes gravariam no banco de produção (foi pego no caminho; `src/data/client.test.ts` é a trava).
+
+**Escopo extra que entrou:**
+- **7ª migration** `20261006030000_reserva_sequencias.sql` (RPC `reservar_sequencia(nome, qtd)`); todas aplicadas no banco real (16 tabelas, RLS em todas, `ativos.configuracao`) + 4 usuários demo
+- **Blocos de 50 IDs**: `prepararBlocos()` no boot, prefetch quando faltam 25, `garantirBloco()` no restore de backup, `Math.max` para nunca regredir contador
+- **Backup**: `restaurarDemo()` é no-op no modo Supabase e o botão na Configurações fica desabilitado
+- **Testes**: `api.test.ts` (10) + `repository.test.ts` (9, modo dual com `vi.mock`) + `client.test.ts` (1) → 92/92
+- **E2E novo** `cdp-persistencia.mjs` (15 checks): login com usuários do banco → criar setor → criar ativo (código vindo do servidor) → POST 201 → **limpar o localStorage** → relogin → linha volta do banco → descartar → `status=Descartado` persistido → 0 erros de console → limpeza (banco termina só com os 4 usuários + 7 setores padrão)
+- **Quirk descoberto:** `Descartar` é *soft delete* (`mudarStatus(…, 'Descartado')`), não apaga a linha — e o botão só aparece com a coluna de ações em modo edição
+- **Quirk**: `carregarSetores()` gera os 7 setores padrão quando o espelho está vazio (é por isso que a tabela `setores` já nasce com 7 linhas no banco)
 
 ### Fase C — Login e sessão reais
 8. Login e-mail+senha (Supabase Auth); remover login por card em produção (manter só em dev)
@@ -150,7 +164,8 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 
 ### E2E (Chrome headless)
 - CDP porta **9225** (`curl http://127.0.0.1:9225/json/list`)
-- Scripts em `/tmp/opencode/cdp-*.mjs` (ex.: `cdp-etiquetas.mjs` — login admin + `/ativos` + etiquetas/QR + 21 checks)
+- Scripts em `/tmp/opencode/cdp-*.mjs` (ex.: `cdp-etiquetas.mjs` 21 checks · `cdp-persistencia.mjs` 15 checks p/ modo Supabase)
+- **Antes de rodar**: `pkill -f "remote-debugging-port=92[2]5"` — chrome órfão de execução anterior faz o script anexar no perfil velho (login já feito + dados editados = checks falsos)
 - **Quirks**: input React → setter nativo do prototype + `Event('input',{bubbles:true})`; select → setter de HTMLSelectElement + `Event('change')`; screenshot → repaint zoom 1.01/1.0 + `bringToFront`; modal `[role=dialog]`; leitura de imagem stale → contornar com `magick <file> -crop WxH+X+Y` antes do Read; `window.print()` é no-op no headless
 - Validar deploy: hash de `dist/assets/index-*.js` == `<script>` de `https://it-stock-react.vercel.app/`
 
@@ -171,8 +186,10 @@ Etiqueta em `/ativos` (botão **Etiquetas**) agora identifica o equipamento comp
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
 2. `git status` + `git log --oneline -3` → deve estar limpo, topo `de1d1e3` (ou posterior)
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
-4. **Próximo passo:** você cria a conta e o projeto Supabase → me passa `SUPABASE_URL` + `SUPABASE_ANON_KEY`
-   → eu aplico as migrations (SQL Editor ou CLI) e começo a **Fase B** (`src/data/api.ts`)
+4. **Próximo passo:** Fase B está pronta mas **não commitada** → me dá o OK para commit/push
+   → e cria na Vercel as env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY`
+   (depois disso: *Redeploy* para o build pegar as variáveis) → eu valido o E2E de produção em modo Supabase
+   → **Fase C** (login e-mail+senha) e nela os 2 riscos adiados (keepalive + IDs por sequência)
 5. Rodar validação sempre: `npm run lint && npx tsc --noEmit && npm test && npm run build`
 6. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
    (rebuild obrigatório antes do E2E: `npm run build` e `npm run preview` na 4173)

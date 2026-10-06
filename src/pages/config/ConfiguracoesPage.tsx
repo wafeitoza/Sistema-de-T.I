@@ -21,6 +21,7 @@ import {
   restaurarDemo,
   validarBackup,
 } from '../../lib/backup'
+import { modoSupabase } from '../../data/client'
 import { lerColecao } from '../../data/repository'
 import { useAtivosStore } from '../../store/ativos'
 import { useAuthStore } from '../../store/auth'
@@ -204,7 +205,9 @@ export function ConfiguracoesPage() {
             ))}
           </div>
           <p className="mt-2 text-xs text-content-muted">
-            Dados salvos apenas neste navegador (localStorage).
+            {modoSupabase
+              ? 'Dados sincronizados com o banco do Supabase (o navegador guarda uma cópia local de leitura).'
+              : 'Dados salvos apenas neste navegador (localStorage).'}
           </p>
         </Card>
       </div>
@@ -233,7 +236,16 @@ export function ConfiguracoesPage() {
               onChange={aoEscolherArquivo}
             />
           </label>
-          <Botao variante="perigo" onClick={() => setConfirmandoReset(true)}>
+          <Botao
+            variante="perigo"
+            disabled={modoSupabase}
+            title={
+              modoSupabase
+                ? 'Desativado: com o banco conectado os dados de demonstração não se aplicam'
+                : undefined
+            }
+            onClick={() => setConfirmandoReset(true)}
+          >
             <RotateCcw size={16} /> Restaurar dados demo
           </Botao>
         </div>

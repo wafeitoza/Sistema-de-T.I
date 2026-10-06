@@ -1,11 +1,28 @@
-import './data/bootstrap'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { iniciar } from './data/bootstrap'
+import { modoSupabase } from './data/client'
 import './index.css'
-import App from './App.tsx'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const raiz = createRoot(document.getElementById('root')!)
+
+// No modo Supabase o App só monta depois das tabelas baixarem — senão os
+// stores inicializariam com o espelho vazio.
+if (modoSupabase) {
+  raiz.render(
+    <div className="grid min-h-screen place-items-center text-sm text-content-muted">
+      Carregando dados…
+    </div>,
+  )
+}
+
+void iniciar()
+  .catch((erro) => console.error('bootstrap:', erro))
+  .finally(async () => {
+    const { default: App } = await import('./App.tsx')
+    raiz.render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    )
+  })

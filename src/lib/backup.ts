@@ -1,4 +1,10 @@
-import { gravarColecao, lerColecao, limparTudo } from '../data/repository'
+import { modoSupabase } from '../data/client'
+import {
+  garantirBloco,
+  gravarColecao,
+  lerColecao,
+  limparTudo,
+} from '../data/repository'
 import { aplicarSeed } from '../data/seed'
 import { agoraISO } from './format'
 
@@ -105,15 +111,21 @@ export function aplicarBackup(backup: Backup): void {
     gravarColecao(nome, Array.isArray(dados) ? dados : [])
   }
   for (const seq of SEQUENCIAS_BACKUP) {
-    localStorage.setItem(
-      `ITSTOCK_SEQ_${seq}`,
-      String(backup.sequencias?.[seq] ?? 0),
-    )
+    const desejado = backup.sequencias?.[seq] ?? 0
+    const atual =
+      Number.parseInt(localStorage.getItem(`ITSTOCK_SEQ_${seq}`) ?? '0', 10) || 0
+    // nunca regride: IDs já emitidos não podem ser reutilizados
+    const valor = Math.max(atual, desejado)
+    localStorage.setItem(`ITSTOCK_SEQ_${seq}`, String(valor))
+    garantirBloco(seq, valor)
   }
   localStorage.setItem('ITSTOCK_SEEDED', 'true')
 }
 
 export function restaurarDemo(): void {
+  // no modo Supabase o banco é a fonte de verdade: apagar o espelho não apaga
+  // nada lá e o estado voltaria na próxima carga. Desativado na Configurações.
+  if (modoSupabase) return
   limparTudo()
   aplicarSeed()
 }

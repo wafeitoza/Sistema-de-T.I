@@ -8,7 +8,7 @@
 ## 1. Estado atual do projeto
 
 **Repo:** `https://github.com/wafeitoza/Sistema-de-T.I.git` (branch `main`)
-**Produção:** https://it-stock-react.vercel.app (build `index-DCdSPWso.js`, modo localStorage)
+**Produção:** https://it-stock-react.vercel.app (build `index-CkBHuD9P.js` = Fase D, modo localStorage)
 **Diretório:** `/home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
 
 ### Commits (rodada de melhorias concluída)
@@ -44,8 +44,10 @@
 
 ### Estado do Git
 `main` sincronizada com `origin/main`, topo = **Fase D** (RLS + aprovação por token).
-Produção no build `index-DCdSPWso.js` (modo localStorage) — **as env vars da Vercel ainda não foram criadas**;
-as 2 migrations da Fase D **ainda não foram aplicadas** no Supabase de produção.
+Produção no build `index-CkBHuD9P.js` (código da Fase D no ar — confirmado que o bundle **não** tem mais
+o segredo `IT-STOCK-MVP-2026`), porém **ainda em modo localStorage** porque as env vars da Vercel não
+foram criadas; as 2 migrations da Fase D **ainda não foram aplicadas** no Supabase — o comportamento
+novo só passa a valer depois do SQL Editor (as RPCs do link de aprovação só existem lá).
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).

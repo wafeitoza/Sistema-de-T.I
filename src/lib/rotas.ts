@@ -32,7 +32,7 @@ export const ROTAS_NAVEGACAO: RotaNav[] = [
   { para: '/estoque', rotulo: 'Estoque', icone: Package, secao: 'Operação' },
   { para: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck, secao: 'Operação' },
   { para: '/movimentacoes', rotulo: 'Movimentações', icone: ArrowLeftRight, secao: 'Operação' },
-  { para: '/emprestimos', rotulo: 'Empréstimos', icone: Handshake, secao: 'Operação' },
+  { para: '/emprestimos', rotulo: 'Empréstimos de Equipamentos', icone: Handshake, secao: 'Operação' },
   { para: '/solicitacoes', rotulo: 'Solicitações', icone: ClipboardList, secao: 'Operação' },
   { para: '/manutencao', rotulo: 'Manutenção', icone: Wrench, secao: 'Operação' },
   { para: '/setores', rotulo: 'Setores', icone: Building2, secao: 'Cadastros' },

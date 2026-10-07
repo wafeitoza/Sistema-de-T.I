@@ -97,7 +97,7 @@ export function EmprestimosPage() {
           ) : null
         }
       >
-        Empréstimos
+        Empréstimos de Equipamentos
       </TituloSecao>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

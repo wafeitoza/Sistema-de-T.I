@@ -1,6 +1,6 @@
 # PLANO DE IMPLANTAÇÃO E PONTO DE RETOMADA
 
-> Documento de continuidade — **última atualização: 06/10/2026 (Fase A + B + C — login e sessão reais)**
+> Documento de continuidade — **última atualização: 07/10/2026 (Fase A + B + C + D — segurança server-side)**
 > Leia este arquivo para continuar de onde paramos.
 
 ---
@@ -28,18 +28,24 @@
 | — | `de1d1e3` | **Etiquetas e QR com todos os dados do equipamento** + campo `configuracao` |
 | B | `18b5968` | **Fase B** — camada de dados dual (Supabase + localStorage), blocos de 50 IDs |
 | C | `fdebae4` | **Fase C** — login e-mail+senha, contas por Admin, sessão persistida |
+| — | `e2bb9c1` | Correção da vulnerabilidade npm (`source-map-js`) → 0 vulnerabilities |
+| — | `5a915ac` | "Empréstimos" → **"Empréstimos de Equipamentos"** (menu, rotas, títulos internos) |
+| — | `c31ee83` | Fonte principal **Inter** (JetBrains Mono continua no monoespaçado) |
+| D | *(Fase D — ver seção 3)* | RLS por perfil, aprovação por UUID no banco, `anon` sem tabelas, auditoria assinada, restore validado |
 
-### Qualidade (validado na última entrega)
+### Qualidade (validado na última entrega — 07/10/2026)
 - `npm run lint` → **0 warnings, 0 erros**
-- `npx tsc --noEmit` → OK
-- `npm test` → **132/132** (Vitest + happy-dom, 15 arquivos)
+- `npx tsc -b` → OK (`tsc --noEmit` na raiz não checa `tsconfig.app.json` — **use `tsc -b`**)
+- `npm test` → **141/141** (Vitest + happy-dom, 16 arquivos)
 - `npm run build` → OK (`tsc -b` incluído)
+- **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **74 checagens, 0 falhas**
 - E2E Chrome headless: local e produção com **0 erros de console**
-  (últimas rodadas: `cdp-etiquetas.mjs` 21 checks · `cdp-persistencia.mjs` 15 checks · **`cdp-login.mjs` 21 checks (Fase C, local)**)
+  (últimas rodadas: `cdp-etiquetas.mjs` 21 checks · `cdp-persistencia.mjs` 15 checks · **`cdp-login.mjs` 21 checks (Fase C, local)** · **`cdp-fase-d.mjs` 13 checks (Fase D, local)** — login por card, card de atividade só p/ Admin, link de aprovação gerado com UUID, página `/aprovacao/<uuid>`, token inválido, logout e dashboard do Visualizador)
 
 ### Estado do Git
-`main` sincronizada com `origin/main`, topo `fdebae4` (**Fase C**).
-Produção no build `index-DCdSPWso.js` (modo localStorage) — **as env vars da Vercel ainda não foram criadas**.
+`main` sincronizada com `origin/main`, topo = **Fase D** (RLS + aprovação por token).
+Produção no build `index-DCdSPWso.js` (modo localStorage) — **as env vars da Vercel ainda não foram criadas**;
+as 2 migrations da Fase D **ainda não foram aplicadas** no Supabase de produção.
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -80,14 +86,39 @@ E-mail + senha no Supabase Auth; o login por card continua só no modo local (se
 - **Testes:** `auth.test.ts` (21) + `admin.test.ts` (8) + `store/auth.test.ts` (11) → **132/132**.
 - **E2E** `/tmp/opencode/cdp-login.mjs` — **21 checks, 0 falhas**: card escondido · senha errada → erro amigável · olho da senha · provisória → modal de troca bloqueante · troca → toast · F5 mantém sessão · logout · senha nova sem pedir troca · 0 erros de console (o único 4xx é o `400` esperado do login errado).
 
+### Funcionalidade nova (07/10/2026) — **Fase D: segurança server-side**
+Nada de visual mudou; o que mudou é o que o servidor aceita fazer.
+
+**Migrations novas (ainda não aplicadas no Supabase de produção — SQL Editor, nesta ordem):**
+- `20261007010000_rls_por_perfil.sql` — helpers (`perfil_atual`, `perfil_em`, `e_admin`, `pode_gerenciar`, `pode_editar`, `papel_requisicao`, `uid_requisicao`, `email_do_usuario`), **`revoke … from anon` em todas as tabelas**, policies por perfil (leitura = autenticado, exceto `auditoria` → Admin/Gerente; escrita = Admin/Gerente/Técnico em `pode_editar`, `setores`/`fornecedores`/`solicitacoes` → Admin/Gerente, `usuarios` → só Admin), `service_role` coberto por policy explícita, triggers `usuarios_protegidos` (bloqueia auto-promoção e muda `auth_id` só via papel `service_role`) e `auditoria_assinada`, e `execute` de `proxima_sequencia`/`reservar_sequencia` revogado do `anon`.
+- `20261007020000_aprovacao_por_token.sql` — RPCs `solicitacao_por_token(uuid)` e `decidir_por_token(uuid,text,text)` (SECURITY DEFINER, executáveis por `anon`) para a página pública de aprovação.
+
+**No app:**
+- `src/lib/token.ts` — token agora é `crypto.randomUUID()` gravado em `solicitacoes.aprovacao_token` (+ `token_expira_em`); **nenhum segredo no bundle**. A coluna antiga `token` (HMAC) ficou deprecada de propósito, para não quebrar um link já enviado durante o deploy.
+- `src/data/aprovacao.ts` (novo) — consultas/decisões por RPC, sem ler tabela.
+- `src/pages/solicitacoes/AprovacaoPage.tsx` — usa as RPCs no modo Supabase; no modo local continua lendo o espelho. Expiração conferida no mount (render puro).
+- `src/data/bootstrap.ts` — **não baixa nada sem sessão**; `baixarDados()` roda após o 1º login e chama `recarregarTodasAsLojas()` (`src/store/recarregar.ts`, novo). Resultado: sem sessão o app sobe instantâneo e sem toast de erro.
+- `src/pages/DashboardPage.tsx` — card "Atividade recente" só aparece para quem acessa `/auditoria`.
+- `src/lib/backup.ts` — `validarBackup` valida **formato de cada registro e chave primária**; `aplicarBackup` devolve `{ ignoradas }` e **pula `USUARIOS` no modo Supabase** (contas são do servidor).
+
+**Como validar (tudo já rodou aqui):**
+```bash
+npm run lint && npx tsc -b && npm test && npm run build   # 0 warnings, 141/141
+# RLS em Postgres 17 (receita no topo de supabase/tests/rls_fase_d.sql)
+docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/tests/rls_fase_d.sql
+```
+
+**Ordem de deploy (importa):** 1) aplicar as 2 migrations no SQL Editor → 2) criar as env vars da Vercel e Redeploy → 3) só então considerar produção.
+
 ### Pendências / cuidados
+- ⚠️ **Aplicar as 2 migrations da Fase D no Supabase** (SQL Editor, na ordem do nome do arquivo) — até isso, produção (e o banco atual) continua com as policies antigas `using (true)`.
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
 - ⚠️ **Criar as env vars na Vercel** (Settings → Environment Variables): `VITE_SUPABASE_URL` = `https://ftwaxhngujwswaauqfbn.supabase.co` · `VITE_SUPABASE_PUBLISHABLE_KEY` = `sb_publishable_DPdZU8GA-…` · `SUPABASE_URL` (mesma URL) · `SUPABASE_PUBLISHABLE_KEY` (mesma chave) · `SUPABASE_SERVICE_ROLE_KEY` = `sb_secret_…` (as 3 últimas **sem** prefixo `VITE_`, só para a Function). Sem elas o build segue em modo localStorage. **Depois de criar: Redeploy** — as variáveis entram só no build seguinte. → **em aberto, é o próximo passo**
 - ⚠️ **E2E de produção ainda não rodou** (depende das env vars): login + `/api/usuarios` criar usuário → senha provisória → login dele → troca → redefinir → limpeza.
 - ⚠️ IDs de `ATIVOS` (`NOTE-001`) e de itens de estoque (`Item-001`) ainda são calculados **no cliente** a partir do espelho — dois navegadores podem gerar o mesmo código e o upsert sobrescreve. As outras 11 coleções usam blocos de sequência do servidor. → **adiado para depois da Fase C**
 - ⚠️ Recarregar dados ao voltar à aba/foco (item 7 da Fase B) — **ainda pendente**.
 - ⚠️ Usuário **Inativo** perde o acesso no app, mas a conta Auth continua existindo (não há `excluir` na API) — fora do escopo desta rodada.
-- Permissões vigentes em `src/lib/permissions.ts` (ACESSO_ROTA) — base para o RLS da Fase D.
+- Permissões vigentes em `src/lib/permissions.ts` (ACESSO_ROTA) — base que o RLS da Fase D espelha.
 
 ---
 
@@ -101,22 +132,21 @@ E-mail + senha no Supabase Auth; o login por card continua só no modo local (se
 | Orçamento | **Só plano grátis** (Vercel free + Supabase free tier) |
 | Auth | **E-mail + senha** (sem MFA, sem login social) |
 
-### O que ainda impede o uso profissional (pós-Fase C)
+### O que ainda impede o uso profissional (pós-Fase D)
 - **Produção segue em `localStorage`** (env vars da Vercel não criadas) → dados por navegador, não compartilhados
-- Segredo HMAC `IT-STOCK-MVP-2026` hardcoded no bundle → links de aprovação forjáveis (**Fase D**)
-- RLS com policy `using (true)` → qualquer cliente com a chave anon lê/escreve tudo (**Fase D**)
-- `auditoria` aceita INSERT vindo do navegador sem autenticação (**Fase D**)
 - Seed de demo continua rodando no modo local (sem env vars) — é proposital
 
-**Já resolvido nas fases B e C:** dados no Supabase (modo dual), login e-mail+senha com sessão persistida e troca obrigatória de senha provisória, contas geridas por servidor (service_role fora do bundle), sequências em blocos no servidor, seed desligado no modo Supabase, `keepalive` nas escritas.
+**Resolvido na Fase D (07/10/2026):** aprovação por link virou UUID aleatório no banco (sem segredo no bundle), RLS por perfil espelhando `permissions.ts`, `anon` sem acesso a qualquer tabela, `auditoria` assinada com o e-mail do JWT, auto-promoção de perfil bloqueada, `auth_id` só pela API e restore de backup validado.
+
+**Resolvido nas fases B e C:** dados no Supabase (modo dual), login e-mail+senha com sessão persistida e troca obrigatória de senha provisória, contas geridas por servidor (service_role fora do bundle), sequências em blocos no servidor, seed desligado no modo Supabase, `keepalive` nas escritas.
 
 ### Arquitetura atual (relevante para a migração)
 - 11 stores Zustand **síncronos** usando `lerColecao`/`gravarColecao` de `src/data/repository.ts`:
   `ativos, auth, estoque, emprestimos, fornecedores, inventario, manutencao, movimentacoes, setores, solicitacoes, termos`
 - `src/data/repository.ts` (48 linhas) foi desenhada para ser trocada por API — hoje já sincroniza em background (Fase B)
 - `src/data/auth.ts` (sessão Supabase) e `src/data/admin.ts` (contas via Vercel Function) — Fase C
-- `src/data/bootstrap.ts` executa `aplicarSeed()` antes dos stores carregarem (só no modo local)
-- `src/lib/token.ts` — HMAC client-side (assinatura `${SEGREDO}|${texto}`)
+- `src/data/bootstrap.ts` — no modo local aplica `aplicarSeed()` antes dos stores carregarem; no modo Supabase **não baixa nada enquanto não houver sessão** (`baixarDados()` roda após o login)
+- `src/lib/token.ts` — aprovação por UUID aleatório (`crypto.randomUUID()`) gravado em `solicitacoes.aprovacao_token`; a verificação/decisão no servidor é a RPC em `src/data/aprovacao.ts` (Fase D)
 - ~15 coleções: ATIVOS, ESTOQUE, SOLICITACOES, MANUTENCOES, CONTAGENS(+ITENS), TERMOS, SETORES, FORNECEDORES, MOVIMENTACOES, EMPRESTIMOS, USUARIOS, LOG, SEQ_*
 
 ---
@@ -129,7 +159,7 @@ E-mail + senha no Supabase Auth; o login por card continua só no modo local (se
    - `20261005120000_esquema_inicial.sql` — 15 tabelas: `usuarios, setores, fornecedores, ativos, estoque, entradas_estoque, saidas_estoque, solicitacoes, manutencoes, contagens+contagem_itens, termos, movimentacoes, auditoria, sequencias`
    - `20261005120100_auditoria_append_only.sql` — trigger que bloqueia UPDATE/DELETE em `auditoria` (TRUNCATE liberado p/ restore) + trigger de `atualizado_em` em 10 tabelas
    - `20261005120200_sequencias.sql` — função `proxima_sequencia(nome)` (SECURITY DEFINER, mesmo contrato do `proximaSequencia()` do app) + seed das 10 sequências
-   - `20261005120300_rls_e_privilegios.sql` — RLS **ligado em todas as tabelas** com policy temporária `using (true)` (Fase D substitui por perfil); `auditoria` = SELECT+INSERT; `sequencias` = SELECT só (escrita só via RPC)
+   - `20261005120300_rls_e_privilegios.sql` — RLS **ligado em todas as tabelas** com policy temporária `using (true)` (**substituída pela Fase D** por policies por perfil); `auditoria` = SELECT+INSERT; `sequencias` = SELECT só (escrita só via RPC)
    - `20261006010000_emprestimos.sql` — tabela `emprestimos` da nova aba (FK p/ `ativos`, `previsao >= data`, `unique` de empréstimo em aberto por ativo, trigger de `atualizado_em`, sequência `EMP`, RLS ligado junto com a tabela)
    - `20261006020000_ativos_configuracao.sql` — coluna opcional `ativos.configuracao` (etiqueta/QR do equipamento)
 3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
@@ -167,10 +197,13 @@ E-mail + senha no Supabase Auth; o login por card continua só no modo local (se
 - **E2E:** `/tmp/opencode/cdp-login.mjs` — 21 checks, 0 falhas (roda sobre `npm run build` + `preview`)
 - **Fix:** GoTrue exige `PUT` (não `PATCH`) em `/auth/v1/admin/users/{id}` → 405
 
-### Fase D — Segurança server-side
-11. Aprovação por link (RN004): trocar HMAC client-side por **UUID aleatório no banco** (`aprovacao_token` em `solicitacoes`) — sem segredo no bundle
-12. **RLS em todas as tabelas** espelhando `permissions.ts` (Admin/Gerente/Técnico/Viewer)
-13. Validações críticas no banco (unicidade RN001, RN006)
+### Fase D — Segurança server-side ✅ CONCLUÍDA em código (07/10/2026) — *falta aplicar no banco*
+11. ✅ Aprovação por link (RN004): HMAC client-side trocado por **UUID aleatório no banco** (`solicitacoes.aprovacao_token` + `token_expira_em`, validade 7 dias) — **sem segredo no bundle**; a coluna `token` (HMAC) ficou deprecada para não quebrar link já enviado. Página pública passou a usar as RPCs `solicitacao_por_token` / `decidir_por_token`.
+12. ✅ **RLS por perfil em todas as tabelas** espelhando `permissions.ts`: leitura = autenticado (exceto `auditoria` → Admin/Gerente), escrita = `pode_editar`, `setores`/`fornecedores`/`solicitacoes` → Admin/Gerente, `usuarios` → só Admin; **`anon` revogado de qualquer tabela**; papel detectado por `current_user` (`papel_requisicao()`), perfil por helper SECURITY DEFINER.
+13. ✅ Validações críticas no banco: `usuarios_protegidos` (só `service_role` troca `auth_id`; perfil não se auto-altera) + `auditoria_assinada` (quem grava autenticado leva o e-mail do JWT, nunca o nome que o cliente mandar) + `bloquear_reescrita_auditoria` (já existia).
+14. ✅ **Restore de backup validado**: `validarBackup` checa formato e chave primária de cada registro; `aplicarBackup` pula `USUARIOS` no modo Supabase e devolve o que foi ignorado.
+15. ✅ **Comportamento testado**: `supabase/tests/rls_fase_d.sql` → 74 checagens em Postgres 17 real (anon sem tabelas e só com as RPCs, cada perfil gravando/bloqueando, auditoria append-only e assinada, service_role liberado) — **0 falhas**.
+- **Pendência da fase:** aplicar as 2 migrations no SQL Editor do Supabase (ver Pendências).
 
 ### Fase E — Operação
 14. **Backups**: no free tier, `pg_dump` agendado via GitHub Actions (semanal) — **obrigatório** (free não tem backup automático)
@@ -190,7 +223,7 @@ E-mail + senha no Supabase Auth; o login por card continua só no modo local (se
 
 ### Stack e comandos
 - Vite 8.3 · React 19 · TS ~6 · Tailwind 4 · React Router 7 · Zustand 5 · recharts · lucide-react · oxlint · Vitest 5
-- `npm run lint` · `npx tsc --noEmit` · `npm run build` · `npm test` · `npm run preview` (porta 4173)
+- `npm run lint` · `npx tsc -b` (o `tsc --noEmit` solto **não** checa o `tsconfig.app.json`) · `npm run build` · `npm test` · `npm run preview` (porta 4173)
 
 ### E2E (Chrome headless)
 - CDP porta **9225** (`curl http://127.0.0.1:9225/json/list`)
@@ -221,17 +254,19 @@ E-mail + senha no Supabase Auth; o login por card continua só no modo local (se
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
 2. `git status` + `git log --oneline -3` → deve estar limpo, topo `fdebae4` (Fase C) ou posterior
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
-4. **Próximo passo:** você cria na Vercel as 5 env vars (3 do frontend + 3 da Function, ver Pendências) e clica **Redeploy**
-   → eu valido o E2E de produção: hash do bundle · login com senha provisória · troca · `/api/usuarios` (criar usuário → senha provisória → login dele → troca → redefinir) → limpeza
-   → **Fase D** (aprovação por UUID no banco + RLS por perfil + validações críticas)
-5. Rodar validação sempre: `npm run lint && npx tsc --noEmit && npm test && npm run build`
+4. **Próximo passo (nesta ordem):**
+   1. **Aplicar as 2 migrations da Fase D** no SQL Editor do Supabase (`20261007010000_rls_por_perfil.sql` → `20261007020000_aprovacao_por_token.sql`) e conferir com `docker exec -i pg-rls … < supabase/tests/rls_fase_d.sql` num banco descartável se quiser revalidar;
+   2. você cria na Vercel as 5 env vars (3 do frontend + 3 da Function, ver Pendências) e clica **Redeploy**
+   → eu valido o E2E de produção: hash do bundle · login com senha provisória · troca · `/api/usuarios` (criar usuário → senha provisória → login dele → troca → redefinir) → link de aprovação → limpeza
+5. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`
 6. E2E local sempre que mexer em login/dados: `npm run build` + `npm run preview` (4173) + Chrome na 9225 + `node /tmp/opencode/cdp-login.mjs "<provisória>"`
 7. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
 8. Ao final: revogar token da Vercel
 
 ### Pendências conhecidas
+- ⚠️ **Aplicar as 2 migrations da Fase D no Supabase** — até lá o banco continua com as policies `using (true)` (fase marcada como concluída só **no código**).
+- ⚠️ **Remover a coluna `solicitacoes.token` (HMAC deprecada)** depois que nenhum link antigo estiver em circulação: `alter table public.solicitacoes drop column token;`
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys.
 - ⚠️ **Env vars da Vercel + E2E de produção** — enquanto não existir, produção roda em localStorage e `/api/usuarios` responde 500.
-- ⚠️ RLS está com policy temporária `using (true)` (acesso geral) — **obrigatório resolver na Fase D** antes de dados reais.
-- ⚠️ `auditoria` hoje aceita INSERT vindo do navegador (sem autenticação) — **resolver na Fase D** (a Fase C autentica o app, mas não o RLS).
+- ⚠️ **Ordem do deploy da Fase D**: migrations no banco **antes** (ou junto) do deploy do frontend — o app novo consulta as RPCs.
 - ⚠️ IDs de `ATIVOS` e de itens de estoque calculados no cliente; recarregar ao voltar à aba/foco; conta Auth de usuário Inativo não é excluída — pós-Fase C.

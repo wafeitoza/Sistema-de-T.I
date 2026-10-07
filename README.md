@@ -57,8 +57,8 @@ Para re-rodar o seed em testes, limpe `ITSTOCK_SESSAO` (ou todo o `localStorage`
 3. **Relatórios** — 6 gráficos Recharts (status, setor, aquisições, manutenções, movimentações, categorias), filtros por período/setor, export CSV e impressão/PDF (`@media print`).
 4. **Termos de responsabilidade + etiquetas** — termos com hash SHA-256 (criar, assinar, revogar, revalidar e detectar adulteração) e etiquetas de ativos com QR Code para impressão (10 por folha A4).
 5. **Setores, fornecedores e movimentações** — cadastros completos com status, migração do seed legado e movimentação de ativos entre setores com confirmação/cancelamento (RN006).
-6. **Qualidade** — Vitest (132 testes unitários), lint a 0 warnings, remoção de código morto e badge "Em andamento" para contagens.
-7. **Supabase (fases A–C)** — schema SQL versionado em `supabase/migrations/`, camada de dados dual e **login real** por e-mail + senha com sessão persistida.
+6. **Qualidade** — Vitest (141 testes unitários), lint a 0 warnings, remoção de código morto e badge "Em andamento" para contagens.
+7. **Supabase (fases A–D)** — schema SQL versionado em `supabase/migrations/`, camada de dados dual, **login real** por e-mail + senha com sessão persistida e **segurança server-side** (RLS por perfil, `anon` sem acesso a tabelas, aprovação por link com UUID no banco — testado em `supabase/tests/rls_fase_d.sql`).
 
 ## Estrutura
 

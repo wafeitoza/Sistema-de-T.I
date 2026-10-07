@@ -1,4 +1,10 @@
-import { NOMES_SEQUENCIA, TAMANHO_BLOCO, proximaSequenciaRemota, sincronizarColecao } from './api'
+import {
+  NOMES_SEQUENCIA,
+  TAMANHO_BLOCO,
+  buscarAuditoria,
+  proximaSequenciaRemota,
+  sincronizarColecao,
+} from './api'
 import { modoSupabase } from './client'
 import { useUiStore } from '../store/ui'
 
@@ -44,6 +50,20 @@ function sincronizar(colecao: string, antes: unknown[], depois: unknown[]): void
       // store indisponível (fora do app, ex.: teste unitário)
     }
   })
+}
+
+/**
+ * Recarrega o espelho de LOG a partir do servidor. Usado quando o registro de
+ * auditoria nasce no banco (decisão por link de aprovação via RPC), já que o
+ * navegador não participou da escrita.
+ */
+export async function recarregarLog(): Promise<void> {
+  if (!modoSupabase) return
+  try {
+    gravarEspelho('LOG', await buscarAuditoria())
+  } catch (erro) {
+    console.error('[supabase] falha ao recarregar a auditoria:', erro)
+  }
 }
 
 export function lerItem<T>(colecao: string, chave: string): T | null {

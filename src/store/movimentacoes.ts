@@ -46,6 +46,7 @@ export interface NovaMovimentacao {
 
 interface MovimentacoesState {
   movimentacoes: Movimentacao[]
+  recarregar: () => void
   criar: (dados: NovaMovimentacao) => Resultado
   confirmar: (id: string) => Resultado
   cancelar: (id: string) => Resultado
@@ -53,6 +54,8 @@ interface MovimentacoesState {
 
 export const useMovimentacoesStore = create<MovimentacoesState>((set, get) => ({
   movimentacoes: lerColecao<Movimentacao>(COLECAO),
+
+  recarregar: () => set({ movimentacoes: lerColecao<Movimentacao>(COLECAO) }),
 
   criar: (dados) => {
     const ativo = useAtivosStore

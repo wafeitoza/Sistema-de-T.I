@@ -57,6 +57,7 @@ function registrarNaAuditoria(
 
 interface SetoresState {
   setores: Setor[]
+  recarregar: () => void
   criar: (dados: { nome: string; responsavel: string; localizacao: string }) => Resultado
   editar: (
     id: string,
@@ -67,6 +68,8 @@ interface SetoresState {
 
 export const useSetoresStore = create<SetoresState>((set, get) => ({
   setores: carregarSetores(),
+
+  recarregar: () => set({ setores: carregarSetores() }),
 
   criar: (dados) => {
     const nome = dados.nome.trim()

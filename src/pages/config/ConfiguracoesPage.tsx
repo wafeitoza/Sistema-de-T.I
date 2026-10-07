@@ -23,12 +23,8 @@ import {
 } from '../../lib/backup'
 import { modoSupabase } from '../../data/client'
 import { lerColecao } from '../../data/repository'
-import { useAtivosStore } from '../../store/ativos'
 import { useAuthStore } from '../../store/auth'
-import { useEstoqueStore } from '../../store/estoque'
-import { useInventarioStore } from '../../store/inventario'
-import { useManutencoesStore } from '../../store/manutencao'
-import { useSolicitacoesStore } from '../../store/solicitacoes'
+import { recarregarTodasAsLojas } from '../../store/recarregar'
 import { useUiStore } from '../../store/ui'
 import type { Usuario } from '../../types'
 
@@ -99,12 +95,8 @@ export function ConfiguracoesPage() {
 
   function aplicar() {
     if (!backupPendente) return
-    aplicarBackup(backupPendente.backup)
-    useAtivosStore.getState().recarregar()
-    useEstoqueStore.getState().recarregar()
-    useSolicitacoesStore.getState().recarregar()
-    useManutencoesStore.getState().recarregar()
-    useInventarioStore.getState().recarregar()
+    const { ignoradas } = aplicarBackup(backupPendente.backup)
+    recarregarTodasAsLojas()
 
     const sessaoRaw = localStorage.getItem('ITSTOCK_SESSAO')
     if (sessaoRaw) {
@@ -121,15 +113,25 @@ export function ConfiguracoesPage() {
     }
 
     const total = backupPendente.resumo.reduce((s, c) => s + c.qtd, 0)
+    const puladas = ignoradas.map((i) => i.nome).join(', ')
     registrarLog({
       usuario: usuario?.email ?? 'desconhecido',
       acao: 'IMPORT',
       tabela: 'BACKUP',
       registroId: backupPendente.backup.geradoEm.slice(0, 10),
-      mensagem: `Backup restaurado (${total} registros)`,
+      mensagem: puladas
+        ? `Backup restaurado (${total} registros) — sem ${puladas}`
+        : `Backup restaurado (${total} registros)`,
     })
     setBackupPendente(null)
-    notificar('sucesso', 'Backup restaurado com sucesso')
+    notificar(
+      ignoradas.length ? 'info' : 'sucesso',
+      ignoradas.length
+        ? `Backup restaurado. Não restaurado: ${ignoradas
+            .map((i) => `${i.nome} — ${i.motivo}`)
+            .join('; ')}.`
+        : 'Backup restaurado com sucesso',
+    )
   }
 
   function restaurar() {

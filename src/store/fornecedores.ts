@@ -75,6 +75,7 @@ export interface DadosFornecedor {
 
 interface FornecedoresState {
   fornecedores: Fornecedor[]
+  recarregar: () => void
   criar: (dados: DadosFornecedor) => Resultado
   editar: (id: string, dados: DadosFornecedor) => Resultado
   alternarStatus: (id: string) => void
@@ -83,6 +84,8 @@ interface FornecedoresState {
 
 export const useFornecedoresStore = create<FornecedoresState>((set, get) => ({
   fornecedores: carregarFornecedores(),
+
+  recarregar: () => set({ fornecedores: carregarFornecedores() }),
 
   criar: (dados) => {
     const nome = dados.nome.trim()

@@ -50,6 +50,7 @@ export interface DadosEmprestimo {
 
 interface EmprestimosState {
   emprestimos: Emprestimo[]
+  recarregar: () => void
   emprestar: (dados: DadosEmprestimo) => Resultado
   devolver: (id: string, observacao?: string) => Resultado
   cancelar: (id: string) => Resultado
@@ -61,6 +62,8 @@ function cancelamentoPermitido(perfil: Perfil | undefined): boolean {
 
 export const useEmprestimosStore = create<EmprestimosState>((set, get) => ({
   emprestimos: lerColecao<Emprestimo>(COLECAO),
+
+  recarregar: () => set({ emprestimos: lerColecao<Emprestimo>(COLECAO) }),
 
   emprestar: (dados) => {
     const funcionario = dados.funcionario.trim()

@@ -1,4 +1,5 @@
 import { modoSupabase } from '../data/client'
+import { DEFINICOES } from '../data/api'
 import {
   garantirBloco,
   gravarColecao,
@@ -93,6 +94,8 @@ export function validarBackup(bruto: string): ResultadoValidacao {
     if (!Array.isArray(valor)) {
       return { ok: false, erro: `Coleção "${nome}" inválida (esperada uma lista).` }
     }
+    const problema = validarRegistros(nome, valor)
+    if (problema) return { ok: false, erro: problema }
   }
   const resumo = COLECOES_BACKUP.map((nome) => ({
     nome,
@@ -105,8 +108,46 @@ export function validarBackup(bruto: string): ResultadoValidacao {
   }
 }
 
-export function aplicarBackup(backup: Backup): void {
+/**
+ * Fase D — um arquivo importado reescreve o servidor (o sync apaga o que não
+ * estiver nele), então a forma de cada registro precisa ser conferida antes:
+ * objeto, com a chave primária da coleção preenchida. Sem isso qualquer JSON
+ * passaria direto para o banco.
+ */
+function validarRegistros(nome: string, registros: unknown[]): string | null {
+  const chave = DEFINICOES[nome]?.chave
+  if (!chave) return null // coleção fora do banco: restauração só local
+
+  for (let i = 0; i < registros.length; i++) {
+    const registro = registros[i]
+    if (!registro || typeof registro !== 'object' || Array.isArray(registro)) {
+      return `Coleção "${nome}": registro ${i + 1} não é um objeto.`
+    }
+    const valor = (registro as Record<string, unknown>)[chave]
+    if (typeof valor !== 'string' || valor.trim() === '') {
+      return `Coleção "${nome}": registro ${i + 1} sem a chave "${chave}".`
+    }
+  }
+  return null
+}
+
+export interface ResultadoRestauracao {
+  /** Coleções puladas na restauração, com o motivo. */
+  ignoradas: { nome: string; motivo: string }[]
+}
+
+export function aplicarBackup(backup: Backup): ResultadoRestauracao {
+  const ignoradas: { nome: string; motivo: string }[] = []
+
   for (const nome of COLECOES_BACKUP) {
+    // Fase D: no modo Supabase as contas nascem na API (Supabase Auth) e um
+    // backup não tem auth_id — restaurar apagaria os usuários que não estão
+    // no arquivo e deixaria os novos sem login. Conta continua sendo
+    // administrada em /usuarios.
+    if (modoSupabase && nome === 'USUARIOS') {
+      ignoradas.push({ nome, motivo: 'contas são geridas pelo servidor' })
+      continue
+    }
     const dados = backup.colecoes[nome]
     gravarColecao(nome, Array.isArray(dados) ? dados : [])
   }
@@ -120,6 +161,7 @@ export function aplicarBackup(backup: Backup): void {
     garantirBloco(seq, valor)
   }
   localStorage.setItem('ITSTOCK_SEEDED', 'true')
+  return { ignoradas }
 }
 
 export function restaurarDemo(): void {

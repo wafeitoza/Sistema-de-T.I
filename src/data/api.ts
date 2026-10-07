@@ -240,6 +240,20 @@ async function carregarSequencias(): Promise<Record<string, number>> {
   return saida
 }
 
+/**
+ * Auditoria no formato do app. Usada quando a linha nasce no servidor (a RPC
+ * `decidir_por_token` grava o log direto no banco, sem passar pelo navegador).
+ */
+export async function buscarAuditoria(): Promise<unknown[]> {
+  const { data, error } = await cliente()
+    .from('auditoria')
+    .select('*')
+    .order('data_hora', { ascending: false })
+    .limit(1000)
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as unknown as Linha[]).map((linha) => paraApp('LOG', linha))
+}
+
 /** Envia ao servidor o que mudou nesta coleção (diff por registro). */
 export async function sincronizarColecao(
   colecao: string,

@@ -1,5 +1,14 @@
 import { create } from 'zustand'
-import { gravarColecao, lerColecao, proximaSequencia } from '../data/repository'
+import {
+  decidirPorTokenNoServidor,
+} from '../data/aprovacao'
+import { modoSupabase } from '../data/client'
+import {
+  gravarColecao,
+  lerColecao,
+  proximaSequencia,
+  recarregarLog,
+} from '../data/repository'
 import { calcularDiff, registrarLog } from '../lib/audit'
 import { agoraISO, hojeBR } from '../lib/format'
 import { gerarTokenAprovacao, validarTokenAprovacao } from '../lib/token'
@@ -35,7 +44,12 @@ interface SolicitacoesState {
   solicitacoes: Solicitacao[]
   recarregar: () => void
   criar: (dados: NovaSolicitacao) => Solicitacao
-  editar: (id: string, campos: Partial<Solicitacao>) => void
+  editar: (
+    id: string,
+    campos: Partial<Solicitacao>,
+    /** Campos que mudam mas não podem aparecer no log (ex.: token do link). */
+    ocultarNoLog?: string[],
+  ) => void
   enviar: (id: string) => { ok: boolean; erro?: string; link?: string }
   decidir: (
     id: string,
@@ -46,7 +60,7 @@ interface SolicitacoesState {
     token: string,
     acao: 'aprovar' | 'rejeitar',
     motivo?: string,
-  ) => ResultadoDecisao
+  ) => Promise<ResultadoDecisao>
   finalizar: (id: string) => void
 }
 
@@ -95,7 +109,7 @@ export const useSolicitacoesStore = create<SolicitacoesState>((set, get) => ({
     return solicitacao
   },
 
-  editar: (id, campos) => {
+  editar: (id, campos, ocultarNoLog = []) => {
     const atual = get().solicitacoes
     const alvo = atual.find((s) => s.id === id)
     if (!alvo) return
@@ -111,7 +125,7 @@ export const useSolicitacoesStore = create<SolicitacoesState>((set, get) => ({
       campos: calcularDiff(
         alvo as unknown as Record<string, unknown>,
         { ...alvo, ...campos } as unknown as Record<string, unknown>,
-      ),
+      ).filter((c) => !ocultarNoLog.includes(c.campo)),
     })
     set({ solicitacoes: proximas })
   },
@@ -122,12 +136,17 @@ export const useSolicitacoesStore = create<SolicitacoesState>((set, get) => ({
     if (alvo.status !== 'Rascunho') {
       return { ok: false, erro: 'Apenas rascunhos podem ser enviados' }
     }
-    const { token, expiraEm } = gerarTokenAprovacao(id, alvo.aprovador)
-    get().editar(id, {
-      status: 'Enviada',
-      token,
-      tokenExpiraEm: expiraEm,
-    } as Partial<Solicitacao>)
+    // RN004 (Fase D): UUID aleatório — id e aprovador não vão na URL.
+    const { token, expiraEm } = gerarTokenAprovacao()
+    get().editar(
+      id,
+      {
+        status: 'Enviada',
+        aprovacaoToken: token,
+        tokenExpiraEm: expiraEm,
+      } as Partial<Solicitacao>,
+      ['aprovacaoToken', 'tokenExpiraEm'],
+    )
     return { ok: true }
   },
 
@@ -141,19 +160,43 @@ export const useSolicitacoesStore = create<SolicitacoesState>((set, get) => ({
     return { ok: true }
   },
 
-  decidirPorToken: (token, acao, motivo) => {
+  decidirPorToken: async (token, acao, motivo) => {
     const validacao = validarTokenAprovacao(token)
-    if (!validacao.valido || !validacao.idSolicitacao) {
+    if (!validacao.valido) {
       return { ok: false, erro: validacao.motivo ?? 'Token inválido' }
     }
-    const alvo = get().solicitacoes.find((s) => s.id === validacao.idSolicitacao)
-    if (!alvo) return { ok: false, erro: 'Solicitação não encontrada' }
+
+    // Modo Supabase: quem decide é o banco. O visitante do link é `anon` e não
+    // tem acesso a nenhuma tabela (RLS da Fase D), então a decisão passa pela
+    // RPC — que também grava a auditoria numa transação só.
+    if (modoSupabase) {
+      const remoto = await decidirPorTokenNoServidor(token, acao, motivo)
+      if (!remoto.ok) return { ok: false, erro: remoto.erro }
+
+      const lista = get().solicitacoes
+      const alvo = lista.find((s) => s.aprovacaoToken === token)
+      if (alvo) {
+        const novo = remoto.solicitacao ?? { ...alvo, ...aplicarDecisao(acao, motivo) }
+        const proximas = lista.map((s) => (s.id === alvo.id ? novo : s))
+        // sem registrarLog: a RPC já deixou o registro no servidor
+        gravarColecao(COLECAO, proximas)
+        set({ solicitacoes: proximas })
+      }
+      void recarregarLog()
+      return { ok: true }
+    }
+
+    const alvo = get().solicitacoes.find((s) => s.aprovacaoToken === token)
+    if (!alvo) return { ok: false, erro: 'Token inválido' }
+    if (!alvo.tokenExpiraEm || new Date(alvo.tokenExpiraEm).getTime() < Date.now()) {
+      return { ok: false, erro: 'Link expirado (validade de 7 dias)' }
+    }
     if (alvo.status !== 'Enviada') {
       return { ok: false, erro: 'Esta solicitação já foi decidida' }
     }
     get().editar(alvo.id, aplicarDecisao(acao, motivo))
     registrarLog({
-      usuario: validacao.aprovador ?? 'desconhecido',
+      usuario: alvo.aprovador || 'desconhecido',
       acao: 'UPDATE',
       tabela: 'SOLICITACOES',
       registroId: alvo.id,

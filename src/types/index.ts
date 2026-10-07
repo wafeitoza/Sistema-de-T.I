@@ -179,7 +179,8 @@ export interface Solicitacao {
   prioridade: Prioridade
   status: StatusSolicitacao
   aprovador: string
-  token?: string
+  /** RN004 (Fase D): UUID aleatório do link de aprovação — só no banco. */
+  aprovacaoToken?: string
   tokenExpiraEm?: string
   dataAprovacao?: string
   motivoRejeicao?: string

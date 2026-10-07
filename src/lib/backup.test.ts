@@ -24,12 +24,32 @@ describe('gerarBackup', () => {
 })
 
 describe('validarBackup', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('aceita um backup gerado pelo sistema', () => {
     const resultado = validarBackup(JSON.stringify(gerarBackup()))
     expect(resultado.ok).toBe(true)
     if (resultado.ok) {
       expect(resultado.resumo.some((r) => r.nome === 'USUARIOS')).toBe(true)
     }
+  })
+
+  it('rejeita registro sem a chave primária da coleção', () => {
+    const backup = gerarBackup()
+    backup.colecoes.ATIVOS = [{ nome: 'Sem código' }]
+    const resultado = validarBackup(JSON.stringify(backup))
+    expect(resultado.ok).toBe(false)
+    if (!resultado.ok) expect(resultado.erro).toContain('codigo')
+  })
+
+  it('rejeita registro que não é objeto', () => {
+    const backup = gerarBackup()
+    backup.colecoes.SOLICITACOES = ['não sou uma linha']
+    const resultado = validarBackup(JSON.stringify(backup))
+    expect(resultado.ok).toBe(false)
+    if (!resultado.ok) expect(resultado.erro).toContain('SOLICITACOES')
   })
 
   it('rejeita JSON inválido', () => {

@@ -1,26 +1,45 @@
-const SEGREDO = 'IT-STOCK-MVP-2026'
+/**
+ * RN004 — link de aprovação de solicitações.
+ *
+ * Fase D: o token deixou de ser um HMAC client-side (FNV-1a de 32 bits com
+ * segredo hardcoded, forjável e exposto no bundle) e passou a ser um **UUID
+ * aleatório** guardado em `solicitacoes.aprovacao_token`. Possuir o UUID é a
+ * capacidade de decidir — validação e escrita acontecem no banco
+ * (RPCs `solicitacao_por_token` / `decidir_por_token`, migrations da Fase D).
+ *
+ * No modo local (sem Supabase) a validação é feita contra o espelho do
+ * navegador: não há servidor, e ali não existe segredo a proteger.
+ */
 const VALIDADE_DIAS = 7
 
-function assinar(texto: string): string {
-  let h = 0x811c9dc5
-  const entrada = `${SEGREDO}|${texto}`
-  for (let i = 0; i < entrada.length; i++) {
-    h ^= entrada.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
+const RE_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** RFC 4122 v4 — `crypto.randomUUID` quando existe, com fallback. */
+function uuid(): string {
+  const c = globalThis.crypto
+  if (typeof c?.randomUUID === 'function') return c.randomUUID()
+
+  const bytes = new Uint8Array(16)
+  if (c?.getRandomValues) {
+    c.getRandomValues(bytes)
+  } else {
+    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256)
   }
-  return (h >>> 0).toString(16)
-}
-
-function base64url(texto: string): string {
-  return btoa(unescape(encodeURIComponent(texto)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '')
-}
-
-function deBase64url(texto: string): string {
-  const complemento = texto.replace(/-/g, '+').replace(/_/g, '/')
-  return decodeURIComponent(escape(atob(complemento)))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'))
+  return (
+    hex.slice(0, 4).join('') +
+    '-' +
+    hex.slice(4, 6).join('') +
+    '-' +
+    hex.slice(6, 8).join('') +
+    '-' +
+    hex.slice(8, 10).join('') +
+    '-' +
+    hex.slice(10, 16).join('')
+  )
 }
 
 export interface TokenAprovacao {
@@ -28,45 +47,27 @@ export interface TokenAprovacao {
   expiraEm: string
 }
 
-export function gerarTokenAprovacao(
-  idSolicitacao: string,
-  aprovador: string,
-): TokenAprovacao {
-  const emitido = Date.now()
-  const expira = emitido + VALIDADE_DIAS * 86_400_000
-  const payload = `${idSolicitacao}|${aprovador}|${emitido}|${expira}`
-  const token = `${base64url(payload)}.${assinar(payload)}`
-  return { token, expiraEm: new Date(expira).toISOString() }
+/** Gera o token do link (o id e o aprovador ficam só no banco, não na URL). */
+export function gerarTokenAprovacao(): TokenAprovacao {
+  const expira = Date.now() + VALIDADE_DIAS * 86_400_000
+  return { token: uuid(), expiraEm: new Date(expira).toISOString() }
 }
 
 export interface ResultadoValidacao {
   valido: boolean
   motivo?: string
-  idSolicitacao?: string
-  aprovador?: string
 }
 
+/**
+ * Checagem de forma do token. Quem confere existência, prazo e status é o
+ * banco (ou, no modo local, a store) — este função só evita uma chamada
+ * óbvia com uma URL truncada.
+ */
 export function validarTokenAprovacao(token: string): ResultadoValidacao {
-  const partes = token.split('.')
-  if (partes.length !== 2) return { valido: false, motivo: 'Token malformado' }
-
-  let payload: string
-  try {
-    payload = deBase64url(partes[0])
-  } catch {
-    return { valido: false, motivo: 'Token inválido' }
+  if (!RE_UUID.test(token)) {
+    return { valido: false, motivo: 'Token malformado' }
   }
-
-  if (assinar(payload) !== partes[1]) {
-    return { valido: false, motivo: 'Assinatura inválida' }
-  }
-
-  const [idSolicitacao, aprovador, , expira] = payload.split('|')
-  if (Number(expira) < Date.now()) {
-    return { valido: false, motivo: 'Link expirado (validade de 7 dias)' }
-  }
-
-  return { valido: true, idSolicitacao, aprovador }
+  return { valido: true }
 }
 
 export function montarLinkAprovacao(token: string): string {

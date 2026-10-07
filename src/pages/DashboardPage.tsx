@@ -157,7 +157,10 @@ export function DashboardPage() {
     0,
   )
 
-  const logs = lerColecao<LogEntrada>('LOG').slice(0, 7)
+  // RLS da Fase D: `auditoria` só é legível por Admin/Gerente — mesma regra
+  // da rota /auditoria. Para os demais perfis o card nem aparece.
+  const verAuditoria = usuario ? podeAcessarRota('/auditoria', usuario.perfil) : false
+  const logs = verAuditoria ? lerColecao<LogEntrada>('LOG').slice(0, 7) : []
   const verSolicitacoes = usuario && podeAcessarRota('/solicitacoes', usuario.perfil)
   const edita = usuario ? podeEditar(usuario.perfil) : false
   const [dataExtenso] = useState(() => {
@@ -381,56 +384,58 @@ export function DashboardPage() {
         </div>
       </Reveal>
 
-      <Reveal atraso={140}>
-        <Card>
-          <div className="mb-3 flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-info/15 shadow-sm">
-              <History size={16} className="text-info" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-content">Atividade recente</p>
-              <p className="text-[11px] text-content-muted">Últimas ações no sistema</p>
+      {verAuditoria && (
+        <Reveal atraso={140}>
+          <Card>
+            <div className="mb-3 flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-info/15 shadow-sm">
+                <History size={16} className="text-info" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-content">Atividade recente</p>
+                <p className="text-[11px] text-content-muted">Últimas ações no sistema</p>
+              </div>
             </div>
-          </div>
-          {logs.length === 0 ? (
-            <p className="text-sm text-content-muted">Nenhuma atividade registrada.</p>
-          ) : (
-            <ul className="relative space-y-1 before:absolute before:bottom-3 before:left-[13px] before:top-3 before:w-px before:bg-line">
-              {logs.map((l, idx) => (
-                <li
-                  key={l.id}
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                  className="anim-fade-up relative flex items-center gap-3 rounded-lg px-1 py-2.5 transition-colors duration-200 hover:bg-surface-2"
-                >
-                  <span
-                    className={cn(
-                      'z-10 h-3 w-3 shrink-0 rounded-full ring-4 ring-surface',
-                      PONTO_ACAO[l.acao] ?? 'bg-content-muted',
-                    )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs">
-                      <span className="font-semibold text-content">
-                        {ACOES_PT[l.acao] ?? l.acao}
-                      </span>{' '}
-                      <span className="text-content-muted">em</span>{' '}
-                      <span className="font-medium text-content">{l.tabela}</span>
-                    </p>
-                    <p className="truncate font-mono text-[11px] text-content-muted">
-                      {l.registroId}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-right text-[11px] text-content-muted">
-                    {formatarData(l.dataHora)}
-                    <br />
-                    {l.usuario}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </Reveal>
+            {logs.length === 0 ? (
+              <p className="text-sm text-content-muted">Nenhuma atividade registrada.</p>
+            ) : (
+              <ul className="relative space-y-1 before:absolute before:bottom-3 before:left-[13px] before:top-3 before:w-px before:bg-line">
+                {logs.map((l, idx) => (
+                  <li
+                    key={l.id}
+                    style={{ animationDelay: `${idx * 50}ms` }}
+                    className="anim-fade-up relative flex items-center gap-3 rounded-lg px-1 py-2.5 transition-colors duration-200 hover:bg-surface-2"
+                  >
+                    <span
+                      className={cn(
+                        'z-10 h-3 w-3 shrink-0 rounded-full ring-4 ring-surface',
+                        PONTO_ACAO[l.acao] ?? 'bg-content-muted',
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs">
+                        <span className="font-semibold text-content">
+                          {ACOES_PT[l.acao] ?? l.acao}
+                        </span>{' '}
+                        <span className="text-content-muted">em</span>{' '}
+                        <span className="font-medium text-content">{l.tabela}</span>
+                      </p>
+                      <p className="truncate font-mono text-[11px] text-content-muted">
+                        {l.registroId}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-right text-[11px] text-content-muted">
+                      {formatarData(l.dataHora)}
+                      <br />
+                      {l.usuario}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </Reveal>
+      )}
     </div>
   )
 }

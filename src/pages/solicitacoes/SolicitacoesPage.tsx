@@ -75,8 +75,8 @@ export function SolicitacoesPage() {
       return
     }
     const sol = useSolicitacoesStore.getState().solicitacoes.find((s) => s.id === id)
-    if (sol?.token) {
-      setLinkEnvio({ id, link: montarLinkAprovacao(sol.token) })
+    if (sol?.aprovacaoToken) {
+      setLinkEnvio({ id, link: montarLinkAprovacao(sol.aprovacaoToken) })
     }
     notificar('sucesso', `${id} enviada para aprovação.`)
   }
@@ -237,10 +237,13 @@ export function SolicitacoesPage() {
                         </Botao>
                       </>
                     )}
-                    {s.status === 'Enviada' && s.token && (
+                    {s.status === 'Enviada' && s.aprovacaoToken && (
                       <button
                         onClick={() =>
-                          setLinkEnvio({ id: s.id, link: montarLinkAprovacao(s.token!) })
+                          setLinkEnvio({
+                            id: s.id,
+                            link: montarLinkAprovacao(s.aprovacaoToken!),
+                          })
                         }
                         className="rounded-lg p-1.5 text-content-muted hover:bg-surface-2 hover:text-primary"
                         title="Ver link de aprovação"

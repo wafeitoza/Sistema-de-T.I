@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { baixarDados } from '../data/bootstrap'
 import {
   entrarComSenha as entrarNoSupabase,
   sairDoSupabase,
@@ -71,10 +72,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const resultado = await entrarNoSupabase(email, senha)
     if (!resultado.ok) return resultado
 
+    // Com o RLS da Fase D o espelho só existe depois da autenticação — o boot
+    // pula o download quando não há sessão. Aqui é o primeiro acesso.
+    const carregado = await baixarDados()
+
     const perfil = perfilPor(email)
     if (!perfil) {
       await sairDoSupabase()
-      return { ok: false, erro: 'Usuário não encontrado ou inativo' }
+      return {
+        ok: false,
+        erro: carregado
+          ? 'Usuário não encontrado ou inativo'
+          : 'Não foi possível carregar os dados do servidor',
+      }
     }
 
     gravarSessao(perfil)
@@ -92,7 +102,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const sessao = await sessaoAtual()
     if (!sessao) return false
 
-    const perfil = perfilPor(sessao.email)
+    let perfil = perfilPor(sessao.email)
+    if (!perfil && lerColecao<Usuario>('USUARIOS').length === 0) {
+      // espelho vazio: sem sessão no boot o download é pulado (RLS da Fase D),
+      // então busca agora antes de decidir que a conta não existe.
+      await baixarDados()
+      perfil = perfilPor(sessao.email)
+    }
+
     if (!perfil) {
       // conta existe no Auth mas não tem perfil ativo no app
       await sairDoSupabase()

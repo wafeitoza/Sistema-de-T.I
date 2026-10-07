@@ -46,8 +46,11 @@
 `main` sincronizada com `origin/main`, topo = **Fase D** (RLS + aprovação por token).
 Produção no build `index-CkBHuD9P.js` (código da Fase D no ar — confirmado que o bundle **não** tem mais
 o segredo `IT-STOCK-MVP-2026`), porém **ainda em modo localStorage** porque as env vars da Vercel não
-foram criadas; as 2 migrations da Fase D **ainda não foram aplicadas** no Supabase — o comportamento
-novo só passa a valer depois do SQL Editor (as RPCs do link de aprovação só existem lá).
+foram criadas. As 2 migrations da Fase D **foram aplicadas no banco de produção em 07/10/2026** e
+conferidas objeto a objeto (47 policies, 0 temporárias, `anon` sem privilégio de tabela, 12 funções,
+2 RPCs do link executáveis por `anon`); o histórico `supabase_migrations.schema_migrations` foi
+baselado pela CLI e `supabase db push` responde *Remote database is up to date*. Falta só a etapa 2 do
+deploy: env vars da Vercel + Redeploy.
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -91,7 +94,7 @@ E-mail + senha no Supabase Auth; o login por card continua só no modo local (se
 ### Funcionalidade nova (07/10/2026) — **Fase D: segurança server-side**
 Nada de visual mudou; o que mudou é o que o servidor aceita fazer.
 
-**Migrations novas (ainda não aplicadas no Supabase de produção — SQL Editor, nesta ordem):**
+**Migrations novas (aplicadas no banco de produção em 07/10/2026):**
 - `20261007010000_rls_por_perfil.sql` — helpers (`perfil_atual`, `perfil_em`, `e_admin`, `pode_gerenciar`, `pode_editar`, `papel_requisicao`, `uid_requisicao`, `email_do_usuario`), **`revoke … from anon` em todas as tabelas**, policies por perfil (leitura = autenticado, exceto `auditoria` → Admin/Gerente; escrita = Admin/Gerente/Técnico em `pode_editar`, `setores`/`fornecedores`/`solicitacoes` → Admin/Gerente, `usuarios` → só Admin), `service_role` coberto por policy explícita, triggers `usuarios_protegidos` (bloqueia auto-promoção e muda `auth_id` só via papel `service_role`) e `auditoria_assinada`, e `execute` de `proxima_sequencia`/`reservar_sequencia` revogado do `anon`.
 - `20261007020000_aprovacao_por_token.sql` — RPCs `solicitacao_por_token(uuid)` e `decidir_por_token(uuid,text,text)` (SECURITY DEFINER, executáveis por `anon`) para a página pública de aprovação.
 
@@ -110,10 +113,12 @@ npm run lint && npx tsc -b && npm test && npm run build   # 0 warnings, 141/141
 docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/tests/rls_fase_d.sql
 ```
 
-**Ordem de deploy (importa):** 1) aplicar as 2 migrations no SQL Editor → 2) criar as env vars da Vercel e Redeploy → 3) só então considerar produção.
+**Ordem de deploy (importa):** 1) ✅ aplicar as 2 migrations (feito em 07/10/2026) → 2) criar as env vars da Vercel e Redeploy → 3) só então considerar produção.
+
+**CLI do Supabase (07/10/2026):** `npm i -g supabase` → `supabase login` → `supabase init` (cria `supabase/config.toml` + `supabase/.gitignore`, ambos versionados) → `supabase link --project-ref ftwaxhngujwswaauqfbn`. Como as 8 primeiras migrations entraram pelo SQL Editor, o histórico remoto estava vazio e o `db push` queria reaplicar as 10 — feito *baseline* com `supabase migration repair <versão> --status applied` (8×) e depois as 2 novas entraram via `db push`. Tudo pela Management API, **sem precisar da senha do banco**. Próximas migrations: `supabase db push --dry-run` → `supabase db push`.
 
 ### Pendências / cuidados
-- ⚠️ **Aplicar as 2 migrations da Fase D no Supabase** (SQL Editor, na ordem do nome do arquivo) — até isso, produção (e o banco atual) continua com as policies antigas `using (true)`.
+- ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
 - ⚠️ **Criar as env vars na Vercel** (Settings → Environment Variables): `VITE_SUPABASE_URL` = `https://ftwaxhngujwswaauqfbn.supabase.co` · `VITE_SUPABASE_PUBLISHABLE_KEY` = `sb_publishable_DPdZU8GA-…` · `SUPABASE_URL` (mesma URL) · `SUPABASE_PUBLISHABLE_KEY` (mesma chave) · `SUPABASE_SERVICE_ROLE_KEY` = `sb_secret_…` (as 3 últimas **sem** prefixo `VITE_`, só para a Function). Sem elas o build segue em modo localStorage. **Depois de criar: Redeploy** — as variáveis entram só no build seguinte. → **em aberto, é o próximo passo**
 - ⚠️ **E2E de produção ainda não rodou** (depende das env vars): login + `/api/usuarios` criar usuário → senha provisória → login dele → troca → redefinir → limpeza.
@@ -166,7 +171,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
    - `20261006020000_ativos_configuracao.sql` — coluna opcional `ativos.configuracao` (etiqueta/QR do equipamento)
 3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
 
-**Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 8 migrations já estão aplicadas no banco real.**
+**Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 10 migrations já estão aplicadas no banco real** (8 da Fase A/B/C + as 2 da Fase D em 07/10/2026), com o histórico `supabase_migrations.schema_migrations` alinhado pela CLI.
 
 ### Fase B — Camada de dados ✅ CONCLUÍDA (06/10/2026)
 4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG com `ignoreDuplicates` / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
@@ -205,7 +210,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 13. ✅ Validações críticas no banco: `usuarios_protegidos` (só `service_role` troca `auth_id`; perfil não se auto-altera) + `auditoria_assinada` (quem grava autenticado leva o e-mail do JWT, nunca o nome que o cliente mandar) + `bloquear_reescrita_auditoria` (já existia).
 14. ✅ **Restore de backup validado**: `validarBackup` checa formato e chave primária de cada registro; `aplicarBackup` pula `USUARIOS` no modo Supabase e devolve o que foi ignorado.
 15. ✅ **Comportamento testado**: `supabase/tests/rls_fase_d.sql` → 74 checagens em Postgres 17 real (anon sem tabelas e só com as RPCs, cada perfil gravando/bloqueando, auditoria append-only e assinada, service_role liberado) — **0 falhas**.
-- **Pendência da fase:** aplicar as 2 migrations no SQL Editor do Supabase (ver Pendências).
+- ✅ **Pendência da fase resolvida (07/10/2026):** as 2 migrations foram aplicadas no banco de produção e conferidas via `supabase db query` (policies, funções, triggers e ACLs).
 
 ### Fase E — Operação
 14. **Backups**: no free tier, `pg_dump` agendado via GitHub Actions (semanal) — **obrigatório** (free não tem backup automático)
@@ -257,7 +262,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 2. `git status` + `git log --oneline -3` → deve estar limpo, topo `fdebae4` (Fase C) ou posterior
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
 4. **Próximo passo (nesta ordem):**
-   1. **Aplicar as 2 migrations da Fase D** no SQL Editor do Supabase (`20261007010000_rls_por_perfil.sql` → `20261007020000_aprovacao_por_token.sql`) e conferir com `docker exec -i pg-rls … < supabase/tests/rls_fase_d.sql` num banco descartável se quiser revalidar;
+   1. ✅ **2 migrations da Fase D aplicadas** (07/10/2026) — histórico alinhado pela CLI (`supabase migration repair --status applied` + `supabase db push` → *up to date*); conferência de RLS feita com `supabase db query --linked`, e o teste completo continua no `docker` descartável (`supabase/tests/rls_fase_d.sql` → 74 checks);
    2. você cria na Vercel as 5 env vars (3 do frontend + 3 da Function, ver Pendências) e clica **Redeploy**
    → eu valido o E2E de produção: hash do bundle · login com senha provisória · troca · `/api/usuarios` (criar usuário → senha provisória → login dele → troca → redefinir) → link de aprovação → limpeza
 5. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`
@@ -266,9 +271,9 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 8. Ao final: revogar token da Vercel
 
 ### Pendências conhecidas
-- ⚠️ **Aplicar as 2 migrations da Fase D no Supabase** — até lá o banco continua com as policies `using (true)` (fase marcada como concluída só **no código**).
+- ✅ ~~Aplicar as 2 migrations da Fase D no Supabase~~ — **feito em 07/10/2026** (banco conferido: 0 policies temporárias, `anon` sem acesso a tabela).
 - ⚠️ **Remover a coluna `solicitacoes.token` (HMAC deprecada)** depois que nenhum link antigo estiver em circulação: `alter table public.solicitacoes drop column token;`
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys.
 - ⚠️ **Env vars da Vercel + E2E de produção** — enquanto não existir, produção roda em localStorage e `/api/usuarios` responde 500.
-- ⚠️ **Ordem do deploy da Fase D**: migrations no banco **antes** (ou junto) do deploy do frontend — o app novo consulta as RPCs.
+- ✅ **Ordem do deploy da Fase D**: migrations já estão no banco (07/10) — sobra só o deploy do frontend com as env vars.
 - ⚠️ IDs de `ATIVOS` e de itens de estoque calculados no cliente; recarregar ao voltar à aba/foco; conta Auth de usuário Inativo não é excluída — pós-Fase C.

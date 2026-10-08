@@ -224,7 +224,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 ### Fase E — Operação
 14. **Backups**: no free tier, `pg_dump` agendado via GitHub Actions (semanal) — **obrigatório** (free não tem backup automático)
 15. Sentry (free) para erros
-16. GitHub Action de CI (lint + tsc + vitest) além do build do Vercel
+16. ✅ **CI no GitHub Actions** (08/10/2026) — `.github/workflows/ci.yml`: em todo push na `main` e em todo PR roda `npm ci` → `oxlint --deny-warnings` → `tsc -b` → `vitest` → `build`, com cache de npm, Node 26 (mesma versão de dev), uma rodada por ref (a anterior é cancelada) e **sem segredos** (o build não exige as env vars do Supabase — sem elas o app cai no modo local). Primeira rodada: **verde em 35s** ([run 37826739284](https://github.com/wafeitoza/Sistema-de-T.I/actions/runs/37826739284)) + badge no README. **Gotcha:** o token do `gh` precisa do escopo **`workflow`** para push de arquivo em `.github/workflows/` (`gh auth refresh -s workflow`); sem ele o GitHub rejeita o push mesmo com `repo`.
 
 ### Fase F — Go-live
 17. Cadastrar usuários reais, treinar, definir RPO

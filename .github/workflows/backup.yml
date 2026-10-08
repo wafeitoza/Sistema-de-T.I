@@ -1,0 +1,48 @@
+# Fase E, item 14 — backup semanal do banco de produção
+# (PLANO-IMPLANTACAO.md: o free tier do Supabase não tem backup automático).
+#
+# Secrets exigidos (repo → Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL    connection string com senha (Project Settings → Database)
+#   BACKUP_PASSPHRASE  frase-senha do GPG que criptografa o dump
+#
+# Restaurar:
+#   gpg -d backup-AAAA-MM-DD.sql.gz.gpg | gunzip | psql "$SUPABASE_DB_URL"
+name: Backup do banco
+
+on:
+  schedule:
+    - cron: '30 6 * * 1' # segundas, 06:30 UTC (03:30 BRT)
+  workflow_dispatch: # gatilho manual para teste/restore
+
+permissions:
+  contents: read
+
+# nunca duas cópias do backup ao mesmo tempo
+concurrency:
+  group: backup-do-banco
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: pg_dump · criptografa · guarda
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: pg_dump + AES-256 (com round-trip verificado)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: bash scripts/backup-postgres.sh
+
+      # O artefato é o dump GPG (já comprimido) — repo público, então só
+      # ele é salvo, nunca SQL cru. 90 dias = máximo do plano free.
+      - name: Guarda o backup (retenção de 90 dias)
+        uses: actions/upload-artifact@v7
+        with:
+          name: backup-postgres
+          path: backup-*.sql.gz.gpg
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0

@@ -272,10 +272,20 @@ export async function sincronizarColecao(
       .filter((r) => !antes.some((a) => a[def.chave] === r[def.chave]))
       .map((r) => paraBanco(colecao, r))
     if (novos.length) {
-      const { error } = await cliente()
-        .from(def.tabela)
-        .upsert(novos, { onConflict: def.chave, ignoreDuplicates: true })
-      if (error) throw new Error(`${def.tabela}: ${error.message}`)
+      // INSERT puro, sem ON CONFLICT: a detecção de conflito do upsert exige
+      // que o papel LEIA a linha existente, e `auditoria_leitura` é
+      // `pode_gerenciar()` — o que fazia o login de um Visualizador (que não
+      // lê auditoria) voltar 403 e nunca ser registrado. Duplicata (23505)
+      // significa "o log já está lá": reenvia um a um descartando as que já
+      // existem, sem exigir SELECT/UPDATE de ninguém.
+      const { error } = await cliente().from(def.tabela).insert(novos)
+      if (error && error.code !== '23505') throw new Error(`${def.tabela}: ${error.message}`)
+      if (error?.code === '23505') {
+        for (const linha of novos) {
+          const { error: item } = await cliente().from(def.tabela).insert(linha)
+          if (item && item.code !== '23505') throw new Error(`${def.tabela}: ${item.message}`)
+        }
+      }
     }
     return
   }

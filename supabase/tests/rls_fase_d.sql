@@ -139,6 +139,16 @@ begin
     'select public.proxima_sequencia(''SOL'')', false);
   perform public.rls_checar('anon: reservar_sequencia bloqueada',
     'select public.reservar_sequencia(''SOL'', 10)', false);
+  -- helpers de policy: sem EXECUTE para anon (revoke de PUBLIC na migration
+  -- 20261008010000) — elas só devolvem null/false, mas o anon não as enxerga
+  perform public.rls_checar('anon: perfil_atual bloqueada',
+    'select public.perfil_atual()', false);
+  perform public.rls_checar('anon: e_admin bloqueada',
+    'select public.e_admin()', false);
+  perform public.rls_checar('anon: pode_editar bloqueada',
+    'select public.pode_editar()', false);
+  perform public.rls_checar('anon: papel_requisicao bloqueada',
+    'select public.papel_requisicao()', false);
   perform public.rls_checar('anon: INSERT em ativos bloqueado',
     'insert into public.ativos (codigo, descricao, tipo, setor, responsavel, data_aquisicao, qr_url)
      values (''NBX-999'', ''x'', ''Notebook'', ''TI'', ''x'', ''2026-01-01'', ''x'')', false);
@@ -213,6 +223,12 @@ begin
     'select count(*) from public.ativos', true);
   perform public.rls_checar('sem vinculo: SELECT usuarios liberado',
     'select count(*) from public.usuarios', true);
+  -- as policies chamam estas helpers como o papel da requisição: o revoke do
+  -- PUBLIC não pode ter tirado o EXECUTE delas de authenticated
+  perform public.rls_checar('sem vinculo: perfil_atual executavel',
+    'select public.perfil_atual()', true);
+  perform public.rls_checar('sem vinculo: pode_editar executavel',
+    'select public.pode_editar()', true);
   perform public.rls_checar('sem vinculo: INSERT em ativos bloqueado',
     'insert into public.ativos (codigo, descricao, tipo, setor, responsavel, data_aquisicao, qr_url)
      values (''NBX-998'', ''x'', ''Notebook'', ''TI'', ''x'', ''2026-01-01'', ''x'')', false);
@@ -232,6 +248,9 @@ begin
 
   perform public.rls_checar_valor('sem vinculo: log nao aceita nome forjado',
     'select usuario from public.auditoria where id = ''LOGT-01''', 'sistema');
+  -- o dono (SQL Editor / dono das funções) continua conseguindo chamá-las
+  perform public.rls_checar('postgres: perfil_atual executavel',
+    'select public.perfil_atual()', true);
 end $$;
 
 -- =============================================================================

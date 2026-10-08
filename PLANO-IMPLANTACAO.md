@@ -98,9 +98,10 @@ Nada de visual mudou; o que mudou é o que o servidor aceita fazer.
 - `20261007010000_rls_por_perfil.sql` — helpers (`perfil_atual`, `perfil_em`, `e_admin`, `pode_gerenciar`, `pode_editar`, `papel_requisicao`, `uid_requisicao`, `email_do_usuario`), **`revoke … from anon` em todas as tabelas**, policies por perfil (leitura = autenticado, exceto `auditoria` → Admin/Gerente; escrita = Admin/Gerente/Técnico em `pode_editar`, `setores`/`fornecedores`/`solicitacoes` → Admin/Gerente, `usuarios` → só Admin), `service_role` coberto por policy explícita, triggers `usuarios_protegidos` (bloqueia auto-promoção e muda `auth_id` só via papel `service_role`) e `auditoria_assinada`, e `execute` de `proxima_sequencia`/`reservar_sequencia` revogado do `anon`.
 - `20261007020000_aprovacao_por_token.sql` — RPCs `solicitacao_por_token(uuid)` e `decidir_por_token(uuid,text,text)` (SECURITY DEFINER, executáveis por `anon`) para a página pública de aprovação.
 - `20261008010000_anon_sem_helpers.sql` + `20261008020000_anon_sem_helpers_supabase.sql` — **hardening**: `create or replace function` concede `execute` a `PUBLIC` (e, no Supabase, o `pg_default_acl` de `supabase_admin` concede **direto** a `anon` em `pg_proc.proacl`). Fora da regra da Fase D, o `anon` conseguia chamar `perfil_atual()`, `e_admin()` etc. pelo PostgREST — devolviam `null`/`false` (sem vazamento), mas só as 2 RPCs do link podem ser visíveis a ele. As duas migrations revogam de `public` **e** de `anon` e reafirmam o grant para `authenticated`/`service_role` (sem o grant as policies parariam de funcionar e **toda escrita seria negada**). **Gotcha que vale para o resto do projeto: em Supabase toda função nova nasce executável por `anon` — toda RPC precisa de revoke explícito.**
+- `20261008030000_remove_token_hmac.sql` (aplicada em 08/10/2026) — **estabilização**: `alter table solicitacoes drop column token` (a coluna HMAC deprecada). Verificado antes de dropar que ninguém mais a lê: as RPCs usam `aprovacao_token` + `token_expira_em`, o tipo `Solicitacao` do app não tem o campo, o mapeamento de colunas não a envia e a suíte não a cita. Validação: Docker 13/13 migrations → suíte **81/81** · produção: coluna removida, histórico 13/13, E2E do fluxo de aprovação **19/19**.
 
 **No app:**
-- `src/lib/token.ts` — token agora é `crypto.randomUUID()` gravado em `solicitacoes.aprovacao_token` (+ `token_expira_em`); **nenhum segredo no bundle**. A coluna antiga `token` (HMAC) ficou deprecada de propósito, para não quebrar um link já enviado durante o deploy.
+- `src/lib/token.ts` — token agora é `crypto.randomUUID()` gravado em `solicitacoes.aprovacao_token` (+ `token_expira_em`); **nenhum segredo no bundle**. A coluna antiga `token` (HMAC) era deprecada de propósito para não quebrar link já enviado durante o deploy — **removida em 08/10/2026** pela migration `20261008030000_remove_token_hmac.sql`.
 - `src/data/aprovacao.ts` (novo) — consultas/decisões por RPC, sem ler tabela.
 - `src/pages/solicitacoes/AprovacaoPage.tsx` — usa as RPCs no modo Supabase; no modo local continua lendo o espelho. Expiração conferida no mount (render puro).
 - `src/data/bootstrap.ts` — **não baixa nada sem sessão**; `baixarDados()` roda após o 1º login e chama `recarregarTodasAsLojas()` (`src/store/recarregar.ts`, novo). Resultado: sem sessão o app sobe instantâneo e sem toast de erro.
@@ -109,7 +110,7 @@ Nada de visual mudou; o que mudou é o que o servidor aceita fazer.
 
 **Como validar (tudo já rodou aqui):**
 ```bash
-npm run lint && npx tsc -b && npm test && npm run build   # 0 warnings, 141/141
+npm run lint && npx tsc -b && npm test && npm run build   # 0 warnings, 143/143
 # RLS em Postgres 17 (receita no topo de supabase/tests/rls_fase_d.sql) — 81/81
 docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/tests/rls_fase_d.sql
 ```
@@ -125,7 +126,9 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
 - ✅ **Hardening do `anon` (08/10/2026)**: teste externo com a chave pública achou 4 helpers (`perfil_atual`, `e_admin`, `pode_editar`, `papel_requisicao`) respondendo 200 para `anon` — causa raiz: o `pg_default_acl` do `supabase_admin` granta `execute` direto no `pg_proc.proacl` de toda função nova. 2 migrations novas (`20261008010000_anon_sem_helpers.sql` + `_supabase.sql`) revogaram `public` **e** `anon` e regraram o `execute` só para `authenticated`/`service_role`. Agora o teste externo dá **8/8**: 6 helpers → 401, só `solicitacao_por_token` → 200.
-- ⚠️ **Revogar o PAT do Supabase** (`sbp_fc1a77d1…`) **e o token da Vercel** (`vcp_8aAoy...`) usados nos deploys — trabalho da rodada terminou.
+- ⚠️ **Revogar o PAT do Supabase** (`sbp_fc1a77d1…`) **e o token da Vercel** (`vcp_8aAoy...`) usados nos deploys — **não é possível por aqui**: a Management API tem `DELETE /platform/profile/access-tokens/{id}`, mas responde `401 "Unsupported access token"` para o próprio PAT (só aceita a sessão OAuth do dashboard), e o token da Vercel não existe em arquivo local nenhum (o Vercel CLI nunca logou — sem `~/.local/share/com.vercel.cli/auth.json`). **Passos (2 minutos, só UI):**
+  - Supabase → https://supabase.com/dashboard/account/tokens → achar o token e **Delete**. Depois, se quiser limpar o local: `supabase logout` (isso só apaga `~/.supabase/access-token`, não revoga no servidor).
+  - Vercel → https://vercel.com/account/tokens → achar o token e **revoke**. (Alternativa via API, se você me passar o token completo: `curl -X DELETE https://api.vercel.com/v3/user/tokens/current -H "Authorization: Bearer <token>"` — o valor especial `current` revoga o próprio token.)
 - ✅ **Env vars da Vercel criadas** (08/10/2026): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (as 3 últimas sem prefixo `VITE_`, só para a Function) + Redeploy.
 - ✅ **E2E de produção em modo Supabase rodou** (08/10/2026): 54 checks, 0 falhas — login por e-mail/senha com provisória, troca obrigatória (modal incontornável), dados vindos do banco nas 6 rotas, sessão persistente, solicitação → link UUID → aprovação → uso único → token inválido, `/api/usuarios` criar/redefinir + **Visualizador negado com 403**, perfis sem acesso indevido, **0 erros de console**.
 - 🐛 **2 bugs de produção encontrados e corrigidos pelo E2E** (commits `4aded49` e `ff8c46c`): (1) o boot anônimo gerava o seed de SETORES e tentava subi-lo como `anon` → 401 + toast; agora `sincronizar()`/`reservar()` exigem sessão (guarda em `repository.ts`); (2) o sync da auditoria usava upsert e o Postgres exige **SELECT** da linha conflitante para detectar conflito, mas `auditoria_leitura` é `pode_gerenciar()` → o login de um Visualizador dava 403 e nunca era auditado; agora é INSERT puro com 23505 tratado como "já existe".
@@ -169,7 +172,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 
 ### Fase A — Fundação (1º deploy) ✅ CONCLUÍDA (05/10/2026)
 1. ✅ Projeto Supabase criado (`ftwaxhngujwswaauqfbn`) com e-mail+senha habilitado
-2. ✅ Schema SQL versionado em `supabase/migrations/` (6 iniciais + 2 das fases B/C = 8 arquivos, ordem alfabética = ordem de execução):
+2. ✅ Schema SQL versionado em `supabase/migrations/` (6 iniciais + 2 das fases B/C = 8 arquivos iniciais; hoje são **13**, ordem alfabética = ordem de execução):
    - `20261005120000_esquema_inicial.sql` — 15 tabelas: `usuarios, setores, fornecedores, ativos, estoque, entradas_estoque, saidas_estoque, solicitacoes, manutencoes, contagens+contagem_itens, termos, movimentacoes, auditoria, sequencias`
    - `20261005120100_auditoria_append_only.sql` — trigger que bloqueia UPDATE/DELETE em `auditoria` (TRUNCATE liberado p/ restore) + trigger de `atualizado_em` em 10 tabelas
    - `20261005120200_sequencias.sql` — função `proxima_sequencia(nome)` (SECURITY DEFINER, mesmo contrato do `proximaSequencia()` do app) + seed das 10 sequências
@@ -178,7 +181,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
    - `20261006020000_ativos_configuracao.sql` — coluna opcional `ativos.configuracao` (etiqueta/QR do equipamento)
 3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
 
-**Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 12 migrations já estão aplicadas no banco real** (8 da Fase A/B/C + as 2 da Fase D em 07/10 + as 2 de hardening do `anon` em 08/10), com o histórico `supabase_migrations.schema_migrations` alinhado pela CLI.
+**Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 13 migrations já estão aplicadas no banco real** (8 da Fase A/B/C + as 2 da Fase D em 07/10 + as 2 de hardening do `anon` em 08/10 + o drop da coluna `token` em 08/10), com o histórico `supabase_migrations.schema_migrations` alinhado pela CLI (13/13) e `supabase db push` respondendo `upToDate: true`.
 
 ### Fase B — Camada de dados ✅ CONCLUÍDA (06/10/2026)
 4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG = **INSERT puro com 23505 tratado como "já existe"** desde `ff8c46c` — o upsert exigia SELECT da linha conflitante e negava o log de quem não lê auditoria / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
@@ -272,16 +275,17 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
    1. ✅ **2 migrations da Fase D aplicadas** (07/10/2026) + **2 de hardening do `anon`** (08/10/2026) — histórico alinhado pela CLI (`supabase migration repair --status applied` + `supabase db push` → *up to date*); conferência de RLS feita com `supabase db query --linked`, teste completo no `docker` descartável (`supabase/tests/rls_fase_d.sql` → 81 checks) e teste externo com a chave pública (`/tmp/opencode/testa-rls-externo.sh` → 8 checks);
    2. ✅ **5 env vars criadas na Vercel + Redeploy** (08/10/2026)
    → ✅ **E2E de produção validado** (08/10/2026): 54 checks, 0 falhas, 0 erros de console — provisória → troca · rotas lendo do banco · solicitação → link UUID → aprovação de uso único → token inválido · `/api/usuarios` criar/redefinir com Visualizador negado (403) · perfis sem acesso indevido · limpeza (banco termina com os 4 usuários + 7 setores, 0 solicitações de teste).
-   **Sobra desta etapa:** revogar o PAT do Supabase e o token da Vercel (ver Pendências).
+   → ✅ **Coluna `solicitacoes.token` removida** (08/10/2026): migration `20261008030000_remove_token_hmac.sql` aplicada (`db push` → histórico 13/13, coluna some do banco) · Docker 13 migrations + suíte **81/81** · E2E do fluxo de aprovação **19/19** · limpeza (0 solicitações).
+   **Sobra desta etapa:** revogar o PAT do Supabase e o token da Vercel (ver Pendências — só UI).
 5. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`
 6. E2E local sempre que mexer em login/dados: `npm run build` + `npm run preview` (4173) + Chrome na 9225 + `node /tmp/opencode/cdp-login.mjs "<provisória>"`
 7. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
-8. Ao final: revogar o PAT do Supabase (`sbp_fc1a77d1…`) e o token da Vercel (`vcp_8aAoy...`)
+8. Ao final: revogar o PAT do Supabase (`sbp_fc1a77d1…`) e o token da Vercel (`vcp_8aAoy...`) — ver Pendências (passos exatos; a Management API rejeita o próprio PAT)
 
 ### Pendências conhecidas
 - ✅ ~~Aplicar as 2 migrations da Fase D no Supabase~~ — **feito em 07/10/2026** (banco conferido: 0 policies temporárias, `anon` sem acesso a tabela).
-- ⚠️ **Remover a coluna `solicitacoes.token` (HMAC deprecada)** depois que nenhum link antigo estiver em circulação: `alter table public.solicitacoes drop column token;`
-- ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys.
+- ✅ ~~Remover a coluna `solicitacoes.token` (HMAC deprecada)~~ — **feito em 08/10/2026** (migration `20261008030000_remove_token_hmac.sql`; verificado antes que ninguém a lê — RPCs, tipo `Solicitacao`, mapeamento de colunas e suíte não a citam — Docker 81/81, produção 13/13, E2E aprovação 19/19).
+- ⚠️ **Revogar o PAT do Supabase** (`sbp_fc1a77d1…`) **e o token da Vercel** (`vcp_8aAoy...`) — **só pela UI** (2 minutos): Supabase → https://supabase.com/dashboard/account/tokens → *Delete*; Vercel → https://vercel.com/account/tokens → *revoke*. Tentei via API: a Management API responde `401 "Unsupported access token"` para o próprio PAT (só aceita sessão OAuth do dashboard) e o token da Vercel não está em arquivo local nenhum (Vercel CLI nunca logou). Depois de revogar, `supabase logout` limpa `~/.supabase/access-token` (só o local — a revogação real é no servidor).
 - ✅ ~~Env vars da Vercel + E2E de produção~~ — **feitos em 08/10/2026** (produção roda em modo Supabase; `/api/usuarios` responde 405/401/200 conforme o caso, nunca mais 500).
 - ✅ **Ordem do deploy da Fase D**: migrations já estão no banco (07/10) — sobra só o deploy do frontend com as env vars.
 - ⚠️ IDs de `ATIVOS` e de itens de estoque calculados no cliente; recarregar ao voltar à aba/foco; conta Auth de usuário Inativo não é excluída — pós-Fase C.

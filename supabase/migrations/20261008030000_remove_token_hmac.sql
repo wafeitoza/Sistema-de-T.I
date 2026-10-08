@@ -1,0 +1,15 @@
+-- Estabilização da Fase D: remove a coluna deprecada `solicitacoes.token`.
+--
+-- A aprovação (RN004) passou a usar o UUID `aprovacao_token` gravado pelo
+-- servidor + `token_expira_em` (7 dias); a coluna `token` guardava o HMAC
+-- gerado no cliente a partir de um segredo que existia no bundle — deixada
+-- de pé só para não quebrar link já enviado. Desde então ninguém mais a lê:
+--   * as RPCs do link (`solicitacao_por_token` / `decidir_por_token`) usam
+--     `aprovacao_token` + `token_expira_em`;
+--   * o tipo `Solicitacao` do app não tem o campo e o mapeamento de colunas
+--     de `src/data/api.ts` não a envia;
+--   * a suíte `supabase/tests/rls_fase_d.sql` não a cita.
+--
+-- Nenhum link antigo circula: a produção só existiu com o UUID (Fase D) e as
+-- solicitações de teste do E2E foram removidas em 08/10/2026.
+alter table public.solicitacoes drop column if exists token;

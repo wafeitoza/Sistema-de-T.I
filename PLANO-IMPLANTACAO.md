@@ -38,7 +38,7 @@
 - `npx tsc -b` → OK (`tsc --noEmit` na raiz não checa `tsconfig.app.json` — **use `tsc -b`**)
 - `npm test` → **141/141** (Vitest + happy-dom, 16 arquivos)
 - `npm run build` → OK (`tsc -b` incluído)
-- **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **74 checagens, 0 falhas**
+- **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **81 checagens, 0 falhas**
 - E2E Chrome headless: local e produção com **0 erros de console**
   (últimas rodadas: `cdp-etiquetas.mjs` 21 checks · `cdp-persistencia.mjs` 15 checks · **`cdp-login.mjs` 21 checks (Fase C, local)** · **`cdp-fase-d.mjs` 13 checks (Fase D, local)** — login por card, card de atividade só p/ Admin, link de aprovação gerado com UUID, página `/aprovacao/<uuid>`, token inválido, logout e dashboard do Visualizador)
 
@@ -97,6 +97,7 @@ Nada de visual mudou; o que mudou é o que o servidor aceita fazer.
 **Migrations novas (aplicadas no banco de produção em 07/10/2026):**
 - `20261007010000_rls_por_perfil.sql` — helpers (`perfil_atual`, `perfil_em`, `e_admin`, `pode_gerenciar`, `pode_editar`, `papel_requisicao`, `uid_requisicao`, `email_do_usuario`), **`revoke … from anon` em todas as tabelas**, policies por perfil (leitura = autenticado, exceto `auditoria` → Admin/Gerente; escrita = Admin/Gerente/Técnico em `pode_editar`, `setores`/`fornecedores`/`solicitacoes` → Admin/Gerente, `usuarios` → só Admin), `service_role` coberto por policy explícita, triggers `usuarios_protegidos` (bloqueia auto-promoção e muda `auth_id` só via papel `service_role`) e `auditoria_assinada`, e `execute` de `proxima_sequencia`/`reservar_sequencia` revogado do `anon`.
 - `20261007020000_aprovacao_por_token.sql` — RPCs `solicitacao_por_token(uuid)` e `decidir_por_token(uuid,text,text)` (SECURITY DEFINER, executáveis por `anon`) para a página pública de aprovação.
+- `20261008010000_anon_sem_helpers.sql` + `20261008020000_anon_sem_helpers_supabase.sql` — **hardening**: `create or replace function` concede `execute` a `PUBLIC` (e, no Supabase, o `pg_default_acl` de `supabase_admin` concede **direto** a `anon` em `pg_proc.proacl`). Fora da regra da Fase D, o `anon` conseguia chamar `perfil_atual()`, `e_admin()` etc. pelo PostgREST — devolviam `null`/`false` (sem vazamento), mas só as 2 RPCs do link podem ser visíveis a ele. As duas migrations revogam de `public` **e** de `anon` e reafirmam o grant para `authenticated`/`service_role` (sem o grant as policies parariam de funcionar e **toda escrita seria negada**). **Gotcha que vale para o resto do projeto: em Supabase toda função nova nasce executável por `anon` — toda RPC precisa de revoke explícito.**
 
 **No app:**
 - `src/lib/token.ts` — token agora é `crypto.randomUUID()` gravado em `solicitacoes.aprovacao_token` (+ `token_expira_em`); **nenhum segredo no bundle**. A coluna antiga `token` (HMAC) ficou deprecada de propósito, para não quebrar um link já enviado durante o deploy.
@@ -109,9 +110,13 @@ Nada de visual mudou; o que mudou é o que o servidor aceita fazer.
 **Como validar (tudo já rodou aqui):**
 ```bash
 npm run lint && npx tsc -b && npm test && npm run build   # 0 warnings, 141/141
-# RLS em Postgres 17 (receita no topo de supabase/tests/rls_fase_d.sql)
+# RLS em Postgres 17 (receita no topo de supabase/tests/rls_fase_d.sql) — 81/81
 docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/tests/rls_fase_d.sql
 ```
+**RLS do exterior (rodado em 08/10/2026, só com a chave pública)**: `anon` → 401 em `/ativos` e `/auditoria`,
+401 nas 6 helpers e em `proxima_sequencia`, OpenAPI sem nenhuma tabela exposta, `INSERT` negado — e
+`200` em `solicitacao_por_token` (o link público continua funcionando) · `service_role` → `200` em
+`/usuarios`. **8 checks, 0 falhas** (script em `/tmp/opencode/testa-rls-externo.sh`).
 
 **Ordem de deploy (importa):** 1) ✅ aplicar as 2 migrations (feito em 07/10/2026) → 2) criar as env vars da Vercel e Redeploy → 3) só então considerar produção.
 
@@ -171,7 +176,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
    - `20261006020000_ativos_configuracao.sql` — coluna opcional `ativos.configuracao` (etiqueta/QR do equipamento)
 3. ✅ Constraints: `UNIQUE(codigo)` (RN001, PK + regex `AAA-000`), unicidade de setor/fornecedor case-insensitive, FKs, `movimentacoes_rn006_setores_diferentes`, `quantidade >= 0`, `data_aquisicao NOT NULL`, coluna `atualizado_em` em toda tabela editável
 
-**Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 10 migrations já estão aplicadas no banco real** (8 da Fase A/B/C + as 2 da Fase D em 07/10/2026), com o histórico `supabase_migrations.schema_migrations` alinhado pela CLI.
+**Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 12 migrations já estão aplicadas no banco real** (8 da Fase A/B/C + as 2 da Fase D em 07/10 + as 2 de hardening do `anon` em 08/10), com o histórico `supabase_migrations.schema_migrations` alinhado pela CLI.
 
 ### Fase B — Camada de dados ✅ CONCLUÍDA (06/10/2026)
 4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG com `ignoreDuplicates` / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
@@ -209,7 +214,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 12. ✅ **RLS por perfil em todas as tabelas** espelhando `permissions.ts`: leitura = autenticado (exceto `auditoria` → Admin/Gerente), escrita = `pode_editar`, `setores`/`fornecedores`/`solicitacoes` → Admin/Gerente, `usuarios` → só Admin; **`anon` revogado de qualquer tabela**; papel detectado por `current_user` (`papel_requisicao()`), perfil por helper SECURITY DEFINER.
 13. ✅ Validações críticas no banco: `usuarios_protegidos` (só `service_role` troca `auth_id`; perfil não se auto-altera) + `auditoria_assinada` (quem grava autenticado leva o e-mail do JWT, nunca o nome que o cliente mandar) + `bloquear_reescrita_auditoria` (já existia).
 14. ✅ **Restore de backup validado**: `validarBackup` checa formato e chave primária de cada registro; `aplicarBackup` pula `USUARIOS` no modo Supabase e devolve o que foi ignorado.
-15. ✅ **Comportamento testado**: `supabase/tests/rls_fase_d.sql` → 74 checagens em Postgres 17 real (anon sem tabelas e só com as RPCs, cada perfil gravando/bloqueando, auditoria append-only e assinada, service_role liberado) — **0 falhas**.
+15. ✅ **Comportamento testado**: `supabase/tests/rls_fase_d.sql` → 81 checagens em Postgres 17 real (anon sem tabelas, sem `execute` nas helpers e só com as RPCs, `authenticated`/`postgres` ainda executando as helpers, cada perfil gravando/bloqueando, auditoria append-only e assinada, service_role liberado) — **0 falhas**.
 - ✅ **Pendência da fase resolvida (07/10/2026):** as 2 migrations foram aplicadas no banco de produção e conferidas via `supabase db query` (policies, funções, triggers e ACLs).
 
 ### Fase E — Operação
@@ -262,7 +267,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 2. `git status` + `git log --oneline -3` → deve estar limpo, topo `fdebae4` (Fase C) ou posterior
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
 4. **Próximo passo (nesta ordem):**
-   1. ✅ **2 migrations da Fase D aplicadas** (07/10/2026) — histórico alinhado pela CLI (`supabase migration repair --status applied` + `supabase db push` → *up to date*); conferência de RLS feita com `supabase db query --linked`, e o teste completo continua no `docker` descartável (`supabase/tests/rls_fase_d.sql` → 74 checks);
+   1. ✅ **2 migrations da Fase D aplicadas** (07/10/2026) — histórico alinhado pela CLI (`supabase migration repair --status applied` + `supabase db push` → *up to date*); conferência de RLS feita com `supabase db query --linked`, e o teste completo continua no `docker` descartável (`supabase/tests/rls_fase_d.sql` → 81 checks);
    2. você cria na Vercel as 5 env vars (3 do frontend + 3 da Function, ver Pendências) e clica **Redeploy**
    → eu valido o E2E de produção: hash do bundle · login com senha provisória · troca · `/api/usuarios` (criar usuário → senha provisória → login dele → troca → redefinir) → link de aprovação → limpeza
 5. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`

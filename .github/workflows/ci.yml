@@ -1,0 +1,49 @@
+# Fase 1 do roadmap — validação automática em todo push/PR.
+#
+# Reproduz o mesmo checklist manual do projeto (PLANO-IMPLANTACAO.md):
+#   npm run lint && npx tsc -b && npm test && npm run build
+# ou seja: lint com 0 warnings, type-check, 143 testes e build de produção.
+#
+# Sem segredos: o build não exige as env vars do Supabase (sem elas o app
+# cai no modo local — src/data/client.ts só liga o cliente se URL e chave
+# existirem), então o CI roda só com o código versionado.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Uma rodada por ref; push novo cancela a anterior (evita fila em merges).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validacao:
+    name: lint · tsc · testes · build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+
+      - name: Dependências (lockfile)
+        run: npm ci
+
+      - name: Lint (oxlint, 0 warnings)
+        run: npm run lint -- --deny-warnings
+
+      - name: Type-check (tsc -b)
+        run: npx tsc -b
+
+      - name: Testes (vitest)
+        run: npm test
+
+      - name: Build de produção
+        run: npm run build

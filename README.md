@@ -1,5 +1,7 @@
 # IT Stock & Inventory — React
 
+[![CI](https://github.com/wafeitoza/Sistema-de-T.I/actions/workflows/ci.yml/badge.svg)](https://github.com/wafeitoza/Sistema-de-T.I/actions/workflows/ci.yml)
+
 Sistema de gestão de T.I. (ativos, estoque, inventário, solicitações, manutenção, termos de responsabilidade, setores, fornecedores e movimentações) em React, baseado na especificação `IT-Stock-Specs/SISTEMA-IT-STOCK.md`.
 
 Produção: **https://it-stock-react.vercel.app**

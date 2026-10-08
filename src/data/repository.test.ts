@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   sincronizarColecao: vi.fn(),
   proximaSequenciaRemota: vi.fn(),
+  sessaoAtual: vi.fn(),
 }))
 
 vi.mock('./client', () => ({ modoSupabase: true, cliente: vi.fn() }))
+vi.mock('./auth', () => ({ sessaoAtual: mocks.sessaoAtual }))
 vi.mock('./api', () => ({
   NOMES_SEQUENCIA: ['SET', 'SOL'],
   TAMANHO_BLOCO: 50,
@@ -24,6 +26,8 @@ beforeEach(() => {
   vi.resetModules()
   mocks.sincronizarColecao.mockReset()
   mocks.proximaSequenciaRemota.mockReset()
+  mocks.sessaoAtual.mockReset()
+  mocks.sessaoAtual.mockResolvedValue({ email: 'teste@empresa.com', trocarSenha: false })
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const chave = localStorage.key(i)
     if (chave?.startsWith('ITSTOCK_')) localStorage.removeItem(chave)
@@ -85,6 +89,21 @@ describe('modo Supabase — espelho + sincronização', () => {
     await new Promise((r) => setTimeout(r, 10))
     expect(repository.lerColecao('AUDITORIA')).toEqual([{ id: 'LOG-1' }])
     expect(mocks.sincronizarColecao).not.toHaveBeenCalled()
+  })
+
+  it('sem sessão não sincroniza nem avisa (boot anônimo)', async () => {
+    const { repository, ui } = await carregar()
+    mocks.sessaoAtual.mockResolvedValue(null)
+    mocks.sincronizarColecao.mockResolvedValue(undefined)
+
+    repository.gravarColecao('SETORES', [{ id: '1', nome: 'TI' }])
+    await new Promise((r) => setTimeout(r, 20))
+
+    // o espelho é gravado na hora; a rede fica de fora até haver sessão —
+    // sem isso o seed de SETORES do boot mandaria 401 como `anon` (Fase D)
+    expect(repository.lerColecao('SETORES')).toEqual([{ id: '1', nome: 'TI' }])
+    expect(mocks.sincronizarColecao).not.toHaveBeenCalled()
+    expect(ui.toasts).toHaveLength(0)
   })
 })
 
@@ -156,5 +175,18 @@ describe('modo Supabase — sequências com bloco', () => {
 
     repository.carregarSequencia('SET', 40)
     expect(localStorage.getItem('ITSTOCK_SEQ_SET')).toBe('120')
+  })
+
+  it('sem sessão não reserva bloco no servidor (anon não executa a RPC)', async () => {
+    const { repository } = await carregar()
+    mocks.sessaoAtual.mockResolvedValue(null)
+    mocks.proximaSequenciaRemota.mockResolvedValue(50)
+
+    await repository.prepararBlocos()
+
+    expect(mocks.proximaSequenciaRemota).not.toHaveBeenCalled()
+    expect(repository.limiteDeSequencia('SET')).toBeUndefined()
+    // o valor local continua funcionando; o bloco vem com `baixarDados()` ao logar
+    expect(repository.proximaSequencia('SET')).toBe(1)
   })
 })

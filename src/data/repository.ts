@@ -5,6 +5,7 @@ import {
   proximaSequenciaRemota,
   sincronizarColecao,
 } from './api'
+import { sessaoAtual } from './auth'
 import { modoSupabase } from './client'
 import { useUiStore } from '../store/ui'
 
@@ -42,7 +43,16 @@ export function gravarEspelho<T>(colecao: string, dados: T[]): void {
 }
 
 function sincronizar(colecao: string, antes: unknown[], depois: unknown[]): void {
-  void sincronizarColecao(colecao, antes as never, depois as never).catch((erro) => {
+  void (async () => {
+    // Fase D: sem sessão o papel da requisição é `anon`, que não alcança
+    // nenhuma tabela — tentar sincronizar viraria só 401 + toast de erro no
+    // boot anônimo (é o que acontece quando o espelho local está vazio e o
+    // store gera o seed padrão, ex.: SETORES). Nada se perde: depois do login
+    // `baixarDados()` regrava o espelho com o servidor e a próxima gravação
+    // volta a sincronizar normalmente.
+    if (!(await sessaoAtual())) return
+    await sincronizarColecao(colecao, antes as never, depois as never)
+  })().catch((erro) => {
     console.error(`[supabase] falha ao sincronizar ${colecao}:`, erro)
     try {
       useUiStore.getState().notificar('erro', `Falha ao sincronizar ${colecao} com o servidor`)
@@ -110,8 +120,12 @@ function reservar(nome: string, qtd: number = TAMANHO_BLOCO): Promise<void> {
   const pendente = reservas.get(nome)
   if (pendente) return pendente
 
-  const promessa = proximaSequenciaRemota(nome, qtd)
+  const promessa = sessaoAtual()
+    .then((sessao) => (sessao ? proximaSequenciaRemota(nome, qtd) : null))
     .then((topo) => {
+      // Sem sessão não há como reservar no servidor (o `anon` não executa a
+      // RPC): o bloco é reservado por `prepararBlocos()` logo após o login.
+      if (topo === null) return
       const base = topo - qtd // valores base+1..topo ficam com este cliente
       if (base > leiaSEQ(nome)) gravaSEQ(nome, base)
       blocos.set(nome, Math.max(blocos.get(nome) ?? 0, topo))

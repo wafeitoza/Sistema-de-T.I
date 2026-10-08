@@ -8,7 +8,7 @@
 ## 1. Estado atual do projeto
 
 **Repo:** `https://github.com/wafeitoza/Sistema-de-T.I.git` (branch `main`)
-**Produção:** https://it-stock-react.vercel.app (build `index-CkBHuD9P.js` = Fase D, modo localStorage)
+**Produção:** https://it-stock-react.vercel.app (build `index-nPhVyPbp.js` = Fase D + hardening + fixes, **modo Supabase real desde 08/10/2026**)
 **Diretório:** `/home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
 
 ### Commits (rodada de melhorias concluída)
@@ -40,17 +40,17 @@
 - `npm run build` → OK (`tsc -b` incluído)
 - **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **81 checagens, 0 falhas**
 - E2E Chrome headless: local e produção com **0 erros de console**
-  (últimas rodadas: `cdp-etiquetas.mjs` 21 checks · `cdp-persistencia.mjs` 15 checks · **`cdp-login.mjs` 21 checks (Fase C, local)** · **`cdp-fase-d.mjs` 13 checks (Fase D, local)** — login por card, card de atividade só p/ Admin, link de aprovação gerado com UUID, página `/aprovacao/<uuid>`, token inválido, logout e dashboard do Visualizador)
+  (últimas rodadas: **produção modo Supabase 08/10/2026 — `cdp-prod-supa.mjs` 21 + `cdp-prod-supa2.mjs` 19 + `cdp-prod-supa3.mjs` 14 = 54 checks, 0 falhas** · `cdp-fase-d.mjs` 13 checks (Fase D, local) · `cdp-login.mjs` 21 checks (Fase C, local) · `cdp-etiquetas.mjs` 21 · `cdp-persistencia.mjs` 15)
 
 ### Estado do Git
-`main` sincronizada com `origin/main`, topo = **Fase D** (RLS + aprovação por token).
-Produção no build `index-CkBHuD9P.js` (código da Fase D no ar — confirmado que o bundle **não** tem mais
-o segredo `IT-STOCK-MVP-2026`), porém **ainda em modo localStorage** porque as env vars da Vercel não
-foram criadas. As 2 migrations da Fase D **foram aplicadas no banco de produção em 07/10/2026** e
-conferidas objeto a objeto (47 policies, 0 temporárias, `anon` sem privilégio de tabela, 12 funções,
-2 RPCs do link executáveis por `anon`); o histórico `supabase_migrations.schema_migrations` foi
-baselado pela CLI e `supabase db push` responde *Remote database is up to date*. Falta só a etapa 2 do
-deploy: env vars da Vercel + Redeploy.
+`main` sincronizada com `origin/main`, topo = **Fase D + hardening + 2 fixes de sincronização**
+(`ff8c46c` audita perfis sem leitura · `4aded49` boot anônimo sem sync · `5122eb8` anon sem helpers).
+**Produção em modo Supabase real desde 08/10/2026**: env vars criadas na Vercel + Redeploy, bundle
+`index-nPhVyPbp.js` com a URL do projeto e a chave publishable embutidas (a `sb_secret_` **não** vaza —
+o único `sb_secret_` do bundle é a string literal do prefixo dentro do próprio `supabase-js`).
+As migrations da Fase D + as 2 de hardening do `anon` **aplicadas no banco de produção** e conferidas
+objeto a objeto; histórico `supabase_migrations.schema_migrations` alinhado (10/10) e `supabase db push`
+responde `upToDate: true`.
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -118,15 +118,17 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 `200` em `solicitacao_por_token` (o link público continua funcionando) · `service_role` → `200` em
 `/usuarios`. **8 checks, 0 falhas** (script em `/tmp/opencode/testa-rls-externo.sh`).
 
-**Ordem de deploy (importa):** 1) ✅ aplicar as 2 migrations (feito em 07/10/2026) → 2) criar as env vars da Vercel e Redeploy → 3) só então considerar produção.
+**Ordem de deploy (importa):** 1) ✅ aplicar as 2 migrations (feito em 07/10/2026) → 2) ✅ criar as env vars da Vercel e Redeploy (feito em 08/10/2026) → 3) ✅ produção validada em modo Supabase (E2E 54/54 em 08/10/2026).
 
 **CLI do Supabase (07/10/2026):** `npm i -g supabase` → `supabase login` → `supabase init` (cria `supabase/config.toml` + `supabase/.gitignore`, ambos versionados) → `supabase link --project-ref ftwaxhngujwswaauqfbn`. Como as 8 primeiras migrations entraram pelo SQL Editor, o histórico remoto estava vazio e o `db push` queria reaplicar as 10 — feito *baseline* com `supabase migration repair <versão> --status applied` (8×) e depois as 2 novas entraram via `db push`. Tudo pela Management API, **sem precisar da senha do banco**. Próximas migrations: `supabase db push --dry-run` → `supabase db push`.
 
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
-- ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys — trabalho da rodada terminou.
-- ⚠️ **Criar as env vars na Vercel** (Settings → Environment Variables): `VITE_SUPABASE_URL` = `https://ftwaxhngujwswaauqfbn.supabase.co` · `VITE_SUPABASE_PUBLISHABLE_KEY` = `sb_publishable_DPdZU8GA-…` · `SUPABASE_URL` (mesma URL) · `SUPABASE_PUBLISHABLE_KEY` (mesma chave) · `SUPABASE_SERVICE_ROLE_KEY` = `sb_secret_…` (as 3 últimas **sem** prefixo `VITE_`, só para a Function). Sem elas o build segue em modo localStorage. **Depois de criar: Redeploy** — as variáveis entram só no build seguinte. → **em aberto, é o próximo passo**
-- ⚠️ **E2E de produção ainda não rodou** (depende das env vars): login + `/api/usuarios` criar usuário → senha provisória → login dele → troca → redefinir → limpeza.
+- ✅ **Hardening do `anon` (08/10/2026)**: teste externo com a chave pública achou 4 helpers (`perfil_atual`, `e_admin`, `pode_editar`, `papel_requisicao`) respondendo 200 para `anon` — causa raiz: o `pg_default_acl` do `supabase_admin` granta `execute` direto no `pg_proc.proacl` de toda função nova. 2 migrations novas (`20261008010000_anon_sem_helpers.sql` + `_supabase.sql`) revogaram `public` **e** `anon` e regraram o `execute` só para `authenticated`/`service_role`. Agora o teste externo dá **8/8**: 6 helpers → 401, só `solicitacao_por_token` → 200.
+- ⚠️ **Revogar o PAT do Supabase** (`sbp_fc1a77d1…`) **e o token da Vercel** (`vcp_8aAoy...`) usados nos deploys — trabalho da rodada terminou.
+- ✅ **Env vars da Vercel criadas** (08/10/2026): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (as 3 últimas sem prefixo `VITE_`, só para a Function) + Redeploy.
+- ✅ **E2E de produção em modo Supabase rodou** (08/10/2026): 54 checks, 0 falhas — login por e-mail/senha com provisória, troca obrigatória (modal incontornável), dados vindos do banco nas 6 rotas, sessão persistente, solicitação → link UUID → aprovação → uso único → token inválido, `/api/usuarios` criar/redefinir + **Visualizador negado com 403**, perfis sem acesso indevido, **0 erros de console**.
+- 🐛 **2 bugs de produção encontrados e corrigidos pelo E2E** (commits `4aded49` e `ff8c46c`): (1) o boot anônimo gerava o seed de SETORES e tentava subi-lo como `anon` → 401 + toast; agora `sincronizar()`/`reservar()` exigem sessão (guarda em `repository.ts`); (2) o sync da auditoria usava upsert e o Postgres exige **SELECT** da linha conflitante para detectar conflito, mas `auditoria_leitura` é `pode_gerenciar()` → o login de um Visualizador dava 403 e nunca era auditado; agora é INSERT puro com 23505 tratado como "já existe".
 - ⚠️ IDs de `ATIVOS` (`NOTE-001`) e de itens de estoque (`Item-001`) ainda são calculados **no cliente** a partir do espelho — dois navegadores podem gerar o mesmo código e o upsert sobrescreve. As outras 11 coleções usam blocos de sequência do servidor. → **adiado para depois da Fase C**
 - ⚠️ Recarregar dados ao voltar à aba/foco (item 7 da Fase B) — **ainda pendente**.
 - ⚠️ Usuário **Inativo** perde o acesso no app, mas a conta Auth continua existindo (não há `excluir` na API) — fora do escopo desta rodada.
@@ -145,8 +147,8 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 | Auth | **E-mail + senha** (sem MFA, sem login social) |
 
 ### O que ainda impede o uso profissional (pós-Fase D)
-- **Produção segue em `localStorage`** (env vars da Vercel não criadas) → dados por navegador, não compartilhados
-- Seed de demo continua rodando no modo local (sem env vars) — é proposital
+- **Seed de demo** continua rodando só no modo local (sem env vars) — é proposital; em produção o banco começa zerado e o seed de SETORES sobe sozinho no primeiro login.
+- ⚠️ **Conhecido (não bloqueante)**: `sincronizarColecao` usa upsert nas 13 coleções normais; se um perfil gerar alteração local numa tabela em que ele não tem `UPDATE`, o upsert volta 403 (a UI não permite isso hoje — é só um limite a lembrar se surgir escrita offline).
 
 **Resolvido na Fase D (07/10/2026):** aprovação por link virou UUID aleatório no banco (sem segredo no bundle), RLS por perfil espelhando `permissions.ts`, `anon` sem acesso a qualquer tabela, `auditoria` assinada com o e-mail do JWT, auto-promoção de perfil bloqueada, `auth_id` só pela API e restore de backup validado.
 
@@ -179,7 +181,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 **Como aplicar:** no SQL Editor do Supabase, colar os arquivos em ordem alfabética (ou `supabase db push` com a CLI). Validado em Postgres 17 real via Docker: todas as constraints, triggers, RLS e cascata passaram. **As 12 migrations já estão aplicadas no banco real** (8 da Fase A/B/C + as 2 da Fase D em 07/10 + as 2 de hardening do `anon` em 08/10), com o histórico `supabase_migrations.schema_migrations` alinhado pela CLI.
 
 ### Fase B — Camada de dados ✅ CONCLUÍDA (06/10/2026)
-4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG com `ignoreDuplicates` / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
+4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG = **INSERT puro com 23505 tratado como "já existe"** desde `ff8c46c` — o upsert exigia SELECT da linha conflitante e negava o log de quem não lê auditoria / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
 5. ✅ **Os 11 stores não mudaram**: `src/data/repository.ts` manteve o contrato síncrono — grava o espelho na hora e dispara o sync em background (falha → toast de erro). Menos risco que refatorar stores.
 6. ✅ Seed só no modo local — `bootstrap.iniciar()` virou assíncrono e o `main.tsx` monta o `App` só depois dele; no modo Supabase ele baixa as tabelas e **não** aplica seed (instância começa zerada, exceto os 4 usuários demo)
 7. ❌ Recarregar ao voltar à aba/foco — **ainda pendente**
@@ -264,21 +266,22 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 ## 5. Como retomar (checklist)
 
 1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
-2. `git status` + `git log --oneline -3` → deve estar limpo, topo `fdebae4` (Fase C) ou posterior
+2. `git status` + `git log --oneline -3` → deve estar limpo, topo `ff8c46c` (Fase D + hardening + fixes) ou posterior
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
 4. **Próximo passo (nesta ordem):**
-   1. ✅ **2 migrations da Fase D aplicadas** (07/10/2026) — histórico alinhado pela CLI (`supabase migration repair --status applied` + `supabase db push` → *up to date*); conferência de RLS feita com `supabase db query --linked`, e o teste completo continua no `docker` descartável (`supabase/tests/rls_fase_d.sql` → 81 checks);
-   2. você cria na Vercel as 5 env vars (3 do frontend + 3 da Function, ver Pendências) e clica **Redeploy**
-   → eu valido o E2E de produção: hash do bundle · login com senha provisória · troca · `/api/usuarios` (criar usuário → senha provisória → login dele → troca → redefinir) → link de aprovação → limpeza
+   1. ✅ **2 migrations da Fase D aplicadas** (07/10/2026) + **2 de hardening do `anon`** (08/10/2026) — histórico alinhado pela CLI (`supabase migration repair --status applied` + `supabase db push` → *up to date*); conferência de RLS feita com `supabase db query --linked`, teste completo no `docker` descartável (`supabase/tests/rls_fase_d.sql` → 81 checks) e teste externo com a chave pública (`/tmp/opencode/testa-rls-externo.sh` → 8 checks);
+   2. ✅ **5 env vars criadas na Vercel + Redeploy** (08/10/2026)
+   → ✅ **E2E de produção validado** (08/10/2026): 54 checks, 0 falhas, 0 erros de console — provisória → troca · rotas lendo do banco · solicitação → link UUID → aprovação de uso único → token inválido · `/api/usuarios` criar/redefinir com Visualizador negado (403) · perfis sem acesso indevido · limpeza (banco termina com os 4 usuários + 7 setores, 0 solicitações de teste).
+   **Sobra desta etapa:** revogar o PAT do Supabase e o token da Vercel (ver Pendências).
 5. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`
 6. E2E local sempre que mexer em login/dados: `npm run build` + `npm run preview` (4173) + Chrome na 9225 + `node /tmp/opencode/cdp-login.mjs "<provisória>"`
 7. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
-8. Ao final: revogar token da Vercel
+8. Ao final: revogar o PAT do Supabase (`sbp_fc1a77d1…`) e o token da Vercel (`vcp_8aAoy...`)
 
 ### Pendências conhecidas
 - ✅ ~~Aplicar as 2 migrations da Fase D no Supabase~~ — **feito em 07/10/2026** (banco conferido: 0 policies temporárias, `anon` sem acesso a tabela).
 - ⚠️ **Remover a coluna `solicitacoes.token` (HMAC deprecada)** depois que nenhum link antigo estiver em circulação: `alter table public.solicitacoes drop column token;`
 - ⚠️ **Revogar o token da Vercel** (`vcp_8aAoy...`) usado nos deploys.
-- ⚠️ **Env vars da Vercel + E2E de produção** — enquanto não existir, produção roda em localStorage e `/api/usuarios` responde 500.
+- ✅ ~~Env vars da Vercel + E2E de produção~~ — **feitos em 08/10/2026** (produção roda em modo Supabase; `/api/usuarios` responde 405/401/200 conforme o caso, nunca mais 500).
 - ✅ **Ordem do deploy da Fase D**: migrations já estão no banco (07/10) — sobra só o deploy do frontend com as env vars.
 - ⚠️ IDs de `ATIVOS` e de itens de estoque calculados no cliente; recarregar ao voltar à aba/foco; conta Auth de usuário Inativo não é excluída — pós-Fase C.

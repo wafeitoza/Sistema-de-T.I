@@ -33,6 +33,14 @@ const USUARIOS: Usuario[] = [
     telefone: '(11) 99999-0001',
   },
   {
+    email: 'william@empresa.com',
+    nome: 'William',
+    perfil: 'Admin',
+    setor: 'TI',
+    status: 'Ativo',
+    telefone: '(11) 99999-0005',
+  },
+  {
     email: 'gerente@empresa.com',
     nome: 'Bruno Gerente',
     perfil: 'Gerente',

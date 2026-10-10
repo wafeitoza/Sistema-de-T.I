@@ -46,6 +46,7 @@ sem senha.
 | Perfil | E-mail | Acesso |
 |---|---|---|
 | Admin | admin@empresa.com | tudo (inclui usuários e configurações) |
+| Admin | william@empresa.com | tudo (inclui usuários e configurações) |
 | Gerente | gerente@empresa.com | relatórios, solicitações, auditoria, cadastros |
 | Técnico | tecnico@empresa.com | ativos, estoque, inventário, movimentações, manutenção |
 | Visualizador | viewer@empresa.com | somente leitura (relatórios permitidos) |

@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
+import { instalarRecargaAoFoco } from './data/foco'
 import { Toasts } from './components/ui/Toasts'
 import { AprovacaoPage } from './pages/solicitacoes/AprovacaoPage'
 import { AtivosPage } from './pages/ativos/AtivosPage'
@@ -20,6 +22,10 @@ import { TermosPage } from './pages/termos/TermosPage'
 import { UsuariosPage } from './pages/usuarios/UsuariosPage'
 
 export default function App() {
+  // Item 7 da Fase B: ao voltar para a aba, baixa o que mudou no servidor
+  // (no-op no modo local e sem sessão). Desligado no unmount.
+  useEffect(() => instalarRecargaAoFoco(), [])
+
   return (
     <BrowserRouter>
       <Routes>

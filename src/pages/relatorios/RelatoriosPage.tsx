@@ -20,7 +20,7 @@ import { Card, TituloSecao } from '../../components/ui/Card'
 import { Entrada, Selecao } from '../../components/ui/Campos'
 import { Resumo } from '../../components/ui/Resumo'
 import { exportarCSV } from '../../lib/exportar'
-import { dataBRparaDate, formatarMoeda, hojeBR } from '../../lib/format'
+import { dataBRparaDate, hojeBR } from '../../lib/format'
 import { useAtivosStore } from '../../store/ativos'
 import { useAuthStore } from '../../store/auth'
 import { useEstoqueStore, statusEstoque } from '../../store/estoque'
@@ -131,10 +131,6 @@ export function RelatoriosPage() {
     [ativos, setor],
   )
 
-  const patrimonio = ativosFiltrados.reduce(
-    (soma, a) => soma + (a.valorAquisicao ?? 0),
-    0,
-  )
   const emRisco = itens.filter((i) => statusEstoque(i) !== 'Normal').length
   const abertas = manutencoes.filter(
     (m) => m.status === 'Agendada' || m.status === 'Em Execução',
@@ -209,7 +205,6 @@ export function RelatoriosPage() {
   function exportar() {
     const linhas: (string | number)[][] = [
       ['Ativos no filtro', ativosFiltrados.length],
-      ['Patrimônio (aquisição)', formatarMoeda(patrimonio)],
       ...porStatus.map((s) => [`Ativos — ${s.name}`, s.value]),
       ...porSetor.map((s) => [`Setor — ${s.name}`, s.value]),
       ...manutencoesPorTipo.map((m) => [`Manutenções — ${m.name}`, m.value]),
@@ -270,9 +265,8 @@ export function RelatoriosPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Resumo titulo="Ativos" valor={ativosFiltrados.length} />
-        <Resumo titulo="Patrimônio" valor={formatarMoeda(patrimonio)} />
         <Resumo titulo="Itens em risco" valor={emRisco} destaque={emRisco > 0} />
         <Resumo titulo="Manutenções abertas" valor={abertas} destaque={abertas > 0} />
       </div>

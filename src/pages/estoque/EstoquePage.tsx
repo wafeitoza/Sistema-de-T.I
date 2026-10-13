@@ -17,7 +17,6 @@ import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { CATEGORIAS_ESTOQUE } from '../../lib/codes'
-import { formatarMoeda } from '../../lib/format'
 import { podeEditar } from '../../lib/permissions'
 import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { statusEstoque, useEstoqueStore } from '../../store/estoque'
@@ -64,10 +63,6 @@ export function EstoquePage() {
     [filtrados, ord, pag.inicio, pag.fim],
   )
 
-  const valorTotal = itens.reduce(
-    (soma, i) => soma + i.quantidade * (i.precoUnitario ?? 0),
-    0,
-  )
   const emRisco = itens.filter((i) => statusEstoque(i) !== 'Normal').length
 
   const movimentosHistorico = historico
@@ -128,10 +123,9 @@ export function EstoquePage() {
         Estoque
       </TituloSecao>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Resumo titulo="Itens cadastrados" valor={String(itens.length)} />
         <Resumo titulo="Itens em risco" valor={String(emRisco)} destaque={emRisco > 0} />
-        <Resumo titulo="Valor em estoque" valor={formatarMoeda(valorTotal)} />
         <Resumo
           titulo="Movimentações"
           valor={String(entradas.length + saidas.length)}

@@ -15,7 +15,7 @@ import { Card } from '../components/ui/Card'
 import { Card3D } from '../components/ui/Card3D'
 import { Reveal } from '../components/ui/Reveal'
 import { cn } from '../lib/cn'
-import { diasAte, formatarData, formatarMoeda } from '../lib/format'
+import { diasAte, formatarData } from '../lib/format'
 import { podeAcessarRota, podeEditar } from '../lib/permissions'
 import { statusEstoque } from '../store/estoque'
 import { useAtivosStore } from '../store/ativos'
@@ -151,12 +151,6 @@ export function DashboardPage() {
   })
   const solicitacoesPendentes = solicitacoes.filter((s) => s.status === 'Enviada')
 
-  const patrimonio = ativos.reduce((soma, a) => soma + (a.valorAquisicao ?? 0), 0)
-  const valorEstoque = itens.reduce(
-    (soma, i) => soma + i.quantidade * (i.precoUnitario ?? 0),
-    0,
-  )
-
   // RLS da Fase D: `auditoria` só é legível por Admin/Gerente — mesma regra
   // da rota /auditoria. Para os demais perfis o card nem aparece.
   const verAuditoria = usuario ? podeAcessarRota('/auditoria', usuario.perfil) : false
@@ -210,16 +204,6 @@ export function DashboardPage() {
             <p className="mt-1.5 text-sm text-white/75">{dataExtenso}</p>
           </div>
           <div className="flex flex-col items-start gap-3 md:items-end">
-            <div className="flex flex-wrap gap-3">
-              <div className="rounded-xl border border-white/20 bg-white/15 px-4 py-2.5 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25">
-                <p className="text-[11px] font-medium text-white/75">Patrimônio</p>
-                <p className="num text-lg font-extrabold">{formatarMoeda(patrimonio)}</p>
-              </div>
-              <div className="rounded-xl border border-white/20 bg-white/15 px-4 py-2.5 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/25">
-                <p className="text-[11px] font-medium text-white/75">Valor em estoque</p>
-                <p className="num text-lg font-extrabold">{formatarMoeda(valorEstoque)}</p>
-              </div>
-            </div>
             {edita && (
               <Link
                 to="/ativos"

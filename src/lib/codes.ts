@@ -44,6 +44,36 @@ function prefixoDe(tipo: string): string {
   return PREFIXOS[tipo] ?? tipo.slice(0, 3).toUpperCase()
 }
 
+/** `NOTE` + 7 → `NOTE-007` (mesmo formatador do modo local e do servidor). */
+export function formatarCodigoAtivo(tipo: string, numero: number): string {
+  return `${prefixoDe(tipo)}-${String(numero).padStart(3, '0')}`
+}
+
+/** `Item` + 12 → `Item-012`. */
+export function formatarCodigoItem(numero: number): string {
+  return `Item-${String(numero).padStart(3, '0')}`
+}
+
+/**
+ * Nome da sequência do servidor por prefixo de ativo (bloco de ID, mesma
+ * mecânica das outras 11 coleções). `Notebook` → `ATV_NOTE`.
+ */
+export function nomeSequenciaAtivo(tipo: string): string {
+  return `ATV_${prefixoDe(tipo)}`
+}
+
+/** Sequência do servidor para os itens de estoque (`Item-001`). */
+export const SEQUENCIA_ITEM = 'ITEM'
+
+/** Uma sequência por prefixo de ativo — a migration semeia as mesmas 14. */
+export const SEQUENCIAS_ATIVO = Object.values(PREFIXOS).map((p) => `ATV_${p}`)
+
+/**
+ * Modo local: calcula o próximo código varrendo o espelho. No modo Supabase
+ * isto não basta — dois navegadores enxergam o mesmo espelho e gerariam o
+ * mesmo código; lá quem decide é a sequência do servidor
+ * (`proximaSequencia(nomeSequenciaAtivo(tipo))`).
+ */
 export function proximoCodigoAtivo(tipo: string, existentes: string[]): string {
   const prefixo = prefixoDe(tipo)
   let maior = 0
@@ -52,7 +82,7 @@ export function proximoCodigoAtivo(tipo: string, existentes: string[]): string {
     const n = Number.parseInt(codigo.slice(prefixo.length + 1), 10)
     if (!Number.isNaN(n) && n > maior) maior = n
   }
-  return `${prefixo}-${String(maior + 1).padStart(3, '0')}`
+  return formatarCodigoAtivo(tipo, maior + 1)
 }
 
 export function proximoCodigoItem(existentes: string[]): string {
@@ -61,7 +91,7 @@ export function proximoCodigoItem(existentes: string[]): string {
     const n = Number.parseInt(codigo.replace(/^Item-/i, ''), 10)
     if (!Number.isNaN(n) && n > maior) maior = n
   }
-  return `Item-${String(maior + 1).padStart(3, '0')}`
+  return formatarCodigoItem(maior + 1)
 }
 
 export function gerarId(prefixo: string, sequencia: number, ano = new Date().getFullYear()): string {

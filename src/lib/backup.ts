@@ -1,5 +1,5 @@
 import { modoSupabase } from '../data/client'
-import { DEFINICOES } from '../data/api'
+import { DEFINICOES, NOMES_SEQUENCIA } from '../data/api'
 import {
   garantirBloco,
   gravarColecao,
@@ -26,7 +26,10 @@ export const COLECOES_BACKUP = [
   'EMPRESTIMOS',
 ] as const
 
-const SEQUENCIAS_BACKUP = ['EDD', 'INV', 'LOG', 'MAN', 'SAD', 'SOL', 'TERM', 'SET', 'FOR', 'MOV', 'EMP'] as const
+// Derivada de NOMES_SEQUENCIA para as duas listas nunca divergirem: cada ID
+// que o app emite precisa voltar no backup, senão um restore re-emeteria um
+// código já usado.
+const SEQUENCIAS_BACKUP: readonly string[] = NOMES_SEQUENCIA
 
 const COLECOES_ESSENCIAIS = ['USUARIOS', 'ATIVOS', 'ESTOQUE']
 

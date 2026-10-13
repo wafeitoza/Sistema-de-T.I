@@ -1,4 +1,5 @@
 import type { ItemContagem } from '../types'
+import { SEQUENCIAS_ATIVO, SEQUENCIA_ITEM } from '../lib/codes'
 import { cliente, modoSupabase } from './client'
 
 type Linha = Record<string, unknown>
@@ -29,7 +30,7 @@ export const DEFINICOES: Record<string, Definicao> = {
 }
 
 /** Nomes de sequência usados pelo app (mesma lista do backup). */
-export const NOMES_SEQUENCIA = [
+export const NOMES_SEQUENCIA: readonly string[] = [
   'EDD',
   'EMP',
   'FOR',
@@ -41,6 +42,11 @@ export const NOMES_SEQUENCIA = [
   'SET',
   'SOL',
   'TERM',
+  // pendência da Fase C: códigos de ativo por prefixo e de item de estoque
+  // também saem de bloco do servidor (o cálculo no cliente colidia entre
+  // dois navegadores e o upsert por PK sobrescrevia a linha)
+  ...SEQUENCIAS_ATIVO,
+  SEQUENCIA_ITEM,
 ] as const
 
 /** Tamanho do bloco reservado por vez (50 IDs por chamada ao servidor). */

@@ -1,7 +1,8 @@
 import { create } from 'zustand'
+import { modoSupabase } from '../data/client'
 import { gravarColecao, lerColecao, proximaSequencia } from '../data/repository'
 import { calcularDiff, registrarLog } from '../lib/audit'
-import { proximoCodigoItem } from '../lib/codes'
+import { formatarCodigoItem, proximoCodigoItem, SEQUENCIA_ITEM } from '../lib/codes'
 import { hojeBR } from '../lib/format'
 import { useAuthStore } from './auth'
 import type {
@@ -94,7 +95,11 @@ export const useEstoqueStore = create<EstoqueState>((set, get) => ({
 
   criarItem: (dados) => {
     const itens = get().itens
-    const codigo = proximoCodigoItem(itens.map((i) => i.codigo))
+    // mesmo critério dos ativos: no Supabase o número vem do bloco do
+    // servidor (evita dois navegadores gerando o mesmo `Item-001`)
+    const codigo = modoSupabase
+      ? formatarCodigoItem(proximaSequencia(SEQUENCIA_ITEM))
+      : proximoCodigoItem(itens.map((i) => i.codigo))
     const item: ItemEstoque = { ...dados, codigo, quantidade: 0 }
     const proximos = [...itens, item]
     gravarColecao(ITENS, proximos)

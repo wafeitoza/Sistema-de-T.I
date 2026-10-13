@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
   conteudoQRAtivo,
+  formatarCodigoAtivo,
+  formatarCodigoItem,
   gerarId,
+  nomeSequenciaAtivo,
   PREFIXOS,
   proximoCodigoAtivo,
   proximoCodigoItem,
+  SEQUENCIAS_ATIVO,
+  SEQUENCIA_ITEM,
   urlQRCode,
 } from './codes'
 
@@ -43,6 +48,29 @@ describe('proximoCodigoItem', () => {
   it('ignora valores não numéricos', () => {
     expect(proximoCodigoItem(['Item-abc', 'Item-002'])).toBe('Item-003')
     expect(proximoCodigoItem([])).toBe('Item-001')
+  })
+})
+
+describe('sequências de ativo e de item (modo Supabase)', () => {
+  it('cada prefixo de ativo tem a sua sequência no servidor', () => {
+    expect(nomeSequenciaAtivo('Notebook')).toBe('ATV_NOTE')
+    expect(nomeSequenciaAtivo('CPU/Computador')).toBe('ATV_CPU')
+    expect(SEQUENCIAS_ATIVO).toContain('ATV_NOTE')
+    expect(SEQUENCIAS_ATIVO).toHaveLength(Object.keys(PREFIXOS).length)
+  })
+
+  it('tipo sem prefixo cadastrado cai no prefixo das 3 primeiras letras', () => {
+    expect(nomeSequenciaAtivo('Projetor')).toBe('ATV_PRO')
+  })
+
+  it('itens de estoque usam uma sequência única', () => {
+    expect(SEQUENCIA_ITEM).toBe('ITEM')
+  })
+
+  it('formatadores montam o mesmo código no modo local e no servidor', () => {
+    expect(formatarCodigoAtivo('Notebook', 7)).toBe(proximoCodigoAtivo('Notebook', ['NOTE-006']))
+    expect(formatarCodigoItem(12)).toBe(proximoCodigoItem(['Item-011']))
+    expect(formatarCodigoAtivo('Monitor', 1000)).toBe('MON-1000') // sem estourar o pad
   })
 })
 

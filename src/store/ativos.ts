@@ -1,7 +1,14 @@
 import { create } from 'zustand'
-import { gravarColecao, lerColecao } from '../data/repository'
+import { modoSupabase } from '../data/client'
+import { gravarColecao, lerColecao, proximaSequencia } from '../data/repository'
 import { calcularDiff, registrarLog } from '../lib/audit'
-import { conteudoQRAtivo, proximoCodigoAtivo, urlQRCode } from '../lib/codes'
+import {
+  conteudoQRAtivo,
+  formatarCodigoAtivo,
+  nomeSequenciaAtivo,
+  proximoCodigoAtivo,
+  urlQRCode,
+} from '../lib/codes'
 import { agoraISO, somarDiasBR } from '../lib/format'
 import { useAuthStore } from './auth'
 import type { Ativo, StatusAtivo } from '../types'
@@ -51,7 +58,13 @@ export const useAtivosStore = create<AtivosState>((set, get) => ({
 
   criar: (dados) => {
     const ativos = get().ativos
-    const codigo = proximoCodigoAtivo(dados.tipo, ativos.map((a) => a.codigo))
+    // No modo Supabase o número vem do bloco de sequência do servidor (dois
+    // navegadores enxergam o mesmo espelho e calculando no cliente gerariam
+    // o mesmo código — o upsert por PK sobrescreveria a linha). No modo local
+    // continua saindo do espelho, como sempre.
+    const codigo = modoSupabase
+      ? formatarCodigoAtivo(dados.tipo, proximaSequencia(nomeSequenciaAtivo(dados.tipo)))
+      : proximoCodigoAtivo(dados.tipo, ativos.map((a) => a.codigo))
     const ativo: Ativo = {
       ...dados,
       codigo,

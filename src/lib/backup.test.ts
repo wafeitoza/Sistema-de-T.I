@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { COLECOES_BACKUP, gerarBackup, validarBackup } from './backup'
+import { aplicarBackup, COLECOES_BACKUP, gerarBackup, validarBackup } from './backup'
 
 describe('gerarBackup', () => {
   beforeEach(() => {
@@ -20,6 +20,31 @@ describe('gerarBackup', () => {
     localStorage.setItem('ITSTOCK_USUARIOS', JSON.stringify([{ id: 'USR-1' }]))
     const backup = gerarBackup()
     expect(backup.colecoes.USUARIOS).toEqual([{ id: 'USR-1' }])
+  })
+
+  it('leva também as sequências de ativo e de item de estoque', () => {
+    // se o backup não levar, um restore re-emite NOTE-001/Item-001 para um
+    // código que já existe — e no Supabase o upsert por PK sobrescreve a linha
+    localStorage.setItem('ITSTOCK_SEQ_ATV_NOTE', '12')
+    localStorage.setItem('ITSTOCK_SEQ_ITEM', '34')
+    const backup = gerarBackup()
+    expect(backup.sequencias?.ATV_NOTE).toBe(12)
+    expect(backup.sequencias?.ITEM).toBe(34)
+  })
+})
+
+describe('aplicarBackup', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('nunca regride a sequência mesmo num backup antigo (só 11 sequências)', () => {
+    localStorage.setItem('ITSTOCK_SEQ_ATV_NOTE', '12')
+    const antigo = gerarBackup()
+    delete antigo.sequencias.ATV_NOTE
+
+    aplicarBackup(antigo)
+    expect(localStorage.getItem('ITSTOCK_SEQ_ATV_NOTE')).toBe('12')
   })
 })
 

@@ -15,8 +15,9 @@ Produção: **https://it-stock-react.vercel.app**
 - Persistência: **modo duplo** — `localStorage` (padrão, sem env) ou **Supabase**
   quando `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` existem
   (camada de repositório em `src/data/repository.ts`)
-- Auth (modo Supabase): e-mail + senha via Supabase Auth, contas geridas pela
-  Vercel Function `api/usuarios.mjs` (service_role fica só no servidor)
+- Auth (modo Supabase): e-mail + senha via Supabase Auth, contas **criadas,
+  redefinidas e excluídas** pela Vercel Function `api/usuarios.mjs`
+  (service_role fica só no servidor; só Admin/Ativo é aceito)
 
 ## Rodar localmente
 

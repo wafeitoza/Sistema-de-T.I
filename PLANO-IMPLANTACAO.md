@@ -38,7 +38,7 @@
 ### Qualidade (validado na última entrega — 13/10/2026)
 - `npm run lint` → **0 warnings, 0 erros**
 - `npx tsc -b` → OK (`tsc --noEmit` na raiz não checa `tsconfig.app.json` — **use `tsc -b`**)
-- `npm test` → **164/164** (Vitest + happy-dom; +3 casos de regressão do bloco de sequência)
+- `npm test` → **168/168** (Vitest + happy-dom; +3 de regressão do bloco de sequência e +4 de `apagarConta`)
 - `npm run build` → OK (`tsc -b` incluído)
 - **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **81 checagens, 0 falhas** (rodada de novo em 13/10 sobre as 14 migrations)
 - **RLS do exterior (13/10/2026, só com a chave pública, contra produção)**: 8 checks, 0 falhas — `anon` → 401 em `ativos`/`auditoria`/`usuarios`/`sequencias` e INSERT negado; `proxima_sequencia`/`reservar_sequencia` → `42501 permission denied`; `solicitacao_por_token` → 200 (link público intacto).
@@ -46,10 +46,11 @@
 - E2E Chrome headless: local e produção com **0 erros de console**
   - **produção 13/10/2026: `/tmp/opencode/e2e-prod.mjs` 18 checks, 0 falhas** — produção em modo Supabase **sem cards de demonstração** → login real com conta temporária → 2 ativos (`NOTE-001`, `NOTE-002`) → item de estoque (`Item-001`) → **foco disparando 30 requisições ao servidor** → debounce de 30 s segurando o 2º disparo (0 requisições) → F5 mantém o código → 0 erros de console e 0 respostas 4xx/5xx. **Achou e corrigiu o bug do bloco de sequência** (`740d136`).
   - modo local 13/10/2026: **`/tmp/opencode/e2e-local.mjs` 13 checks, 0 falhas** — login por card → criar 2 ativos (`NOTE-004` sobre o seed `NOTE-001..003`) → criar item de estoque (`Item-007`) → dispatch de `visibilitychange`/`focus` sem quebrar nada → F5 mantém o código
+  - **produção 13/10/2026 (exclusão de usuário): `/tmp/opencode/e2e-excluir-prod.mjs` 16 checks, 0 falhas** — login real → criação da vítima **pela UI** (prova o insert em `usuarios` sob RLS) → Excluir → modal → remoção → F5 → 0 erros de console. Conferido por service_role que **conta Auth e cadastro sumiram** e que a auditoria registrou CREATE + DELETE. Mesmo fluxo em modo local: `check-excluir-usuario.mjs` 12 checks, 0 falhas (botão ausente na própria linha, modal, persistência no F5).
   - últimas rodadas antigas de produção: **08/10/2026 — `cdp-prod-supa.mjs` 21 + `cdp-prod-supa2.mjs` 19 + `cdp-prod-supa3.mjs` 14 = 54 checks, 0 falhas** · `cdp-fase-d.mjs` 13 · `cdp-login.mjs` 21 · `cdp-etiquetas.mjs` 21 · `cdp-persistencia.mjs` 15
 
 ### Estado do Git
-`main` sincronizada com `origin/main`, topo = **`740d136`** (fix do bloco de sequência).
+`main` sincronizada com `origin/main`; último código: **`630d277`** (exclusão de usuário), seguido dos commits de documentação do mesmo dia.
 **Produção em modo Supabase real desde 08/10/2026**: env vars criadas na Vercel + Redeploy, bundle
 com a URL do projeto e a chave publishable embutidas (a `sb_secret_` **não** vaza —
 o único `sb_secret_` do bundle é a string literal do prefixo dentro do próprio `supabase-js`).
@@ -173,6 +174,23 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
 - **Causa 2**: `carregarSequencia()` empurrava o contador local para o topo do servidor, que frequentemente **era o bloco que acabávamos de reservar e ainda não tínhamos usado** — daí o salto 0 → 51. Agora é no-op quando este cliente já tem bloco: **bloco exclusivo é nosso até o fim**, mesmo que outro navegador já tenha ido além (sem colisão, porque a reserva nova volta do servidor acima do topo alheio).
 - **Regressão coberta** por 3 testes novos em `repository.test.ts` → 164/164. **Confirmado em produção após deploy**: `NOTE-001`, `NOTE-002`, `Item-001`, e o consumo do servidor caiu de **250 → 100** (2 blocos: login + pós-F5, o mínimo para blocos em memória).
 
+### Funcionalidade nova (13/10/2026) — **valores só no inventário** e **exclusão de usuário**
+
+**Valores monetários só no `/inventario`** (`d7956a4`, `d47a5a1`) — pedido do usuário: *"o único lugar que preciso saber dos valores"*.
+- Removidos: os 2 cards do hero do Dashboard (Patrimônio / Valor em estoque), o card "Valor em estoque" do `/estoque`, o card "Patrimônio" **e** a linha "Patrimônio (aquisição)" do CSV do `/relatorios`. Grids de 4 → 3 cards. Os gráficos de relatórios nunca tiveram valores (só contagens).
+- Voltou como card no `/inventario`, na aba **Relatório de ativos** (a aba padrão é "Contagem", que não tem cards de valor): "Valor em estoque" ao lado de "Valor total", grid 4 → 5. O cálculo é **global** — os filtros da página são de ativos (status/setor/tipo), não de item de reposição.
+- Formulários intactos ("Valor de aquisição" no ativo, "Preço unitário" no item): sem eles não há valor para somar.
+- Consequência assumida com o usuário: o valor de estoque passou a existir em um lugar só, o inventário.
+- Conferido no bundle de produção: `Valor em estoque` = 1 ocorrência (só inventário), `Patrimônio` = 0.
+
+**Exclusão de usuário** (`630d277`) — pedido: *"adicione a função de excluir usuário"*. Até aqui só existiam criar/redefinir; apagar só dava pelo `scripts/e2e-usuario.mjs`.
+- `api/usuarios.mjs` ganhou a ação **`excluir`**: apaga a conta no Supabase Auth **e** a linha em `usuarios` (decisão do usuário — "Inativo" continua para só desativar).
+- **Ordem Auth → cadastro** de propósito: numa falha no meio, o pior caso possível é o cadastro órfão, que não concede login — nunca uma conta viva sem perfil. `404` do GoTrue é tratado como sucesso, o que torna a exclusão **repetível** após falha parcial. Não há rollback (não se recria conta apagada), então a falha no cadastro vira erro explícito + e-mail no `console.error` do servidor.
+- **Autoexclusão bloqueada no servidor** (`email === chamador.email` → 400), não só escondendo o botão: um Admin que se apaga deixaria o sistema sem ninguém para gerenciar usuários.
+- `src/data/admin.ts`: `apagarConta(email)`. `UsuariosPage`: botão **Excluir** por linha (ausente na própria) + modal no padrão FornecedoresPage. O modal **não fecha em erro** de propósito — um erro do tipo "a conta foi apagada mas o cadastro não" pede repetição.
+- **Não há FK para `usuarios`** e `responsavel` é texto livre → apagar alguém não quebra histórico algum; a exclusão fica registrada na auditoria (`acao: DELETE`).
+- **Validação**: lint 0 warnings · `tsc -b` · **168/168 testes** (4 novos em `admin.test.ts`) · build · E2E local 13/13 · checagem do fluxo em modo local 12/12 · **E2E de produção 16/16** com login real, criação da vítima pela UI (prova o insert em `usuarios` sob RLS) e exclusão pela UI. Conferido por service_role que **conta Auth e cadastro sumiram** e que a auditoria registrou CREATE + DELETE. Conta temporária apagada no fim.
+
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
 - ✅ **Hardening do `anon` (08/10/2026)**: teste externo com a chave pública achou 4 helpers (`perfil_atual`, `e_admin`, `pode_editar`, `papel_requisicao`) respondendo 200 para `anon` — causa raiz: o `pg_default_acl` do `supabase_admin` granta `execute` direto no `pg_proc.proacl` de toda função nova. 2 migrations novas (`20261008010000_anon_sem_helpers.sql` + `_supabase.sql`) revogaram `public` **e** `anon` e regraram o `execute` só para `authenticated`/`service_role`. Agora o teste externo dá **8/8**: 6 helpers → 401, só `solicitacao_por_token` → 200.
@@ -183,7 +201,7 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
 - 🐛 **2 bugs de produção encontrados e corrigidos pelo E2E** (commits `4aded49` e `ff8c46c`): (1) o boot anônimo gerava o seed de SETORES e tentava subi-lo como `anon` → 401 + toast; agora `sincronizar()`/`reservar()` exigem sessão (guarda em `repository.ts`); (2) o sync da auditoria usava upsert e o Postgres exige **SELECT** da linha conflitante para detectar conflito, mas `auditoria_leitura` é `pode_gerenciar()` → o login de um Visualizador dava 403 e nunca era auditado; agora é INSERT puro com 23505 tratado como "já existe".
 - ✅ ~~IDs de `ATIVOS` e de itens de estoque calculados no cliente~~ — **fechado em 13/10/2026** (migration `20261013100000` + stores consumindo `proximaSequencia()`; ver "Funcionalidade nova (13/10/2026)").
 - ✅ ~~Recarregar dados ao voltar à aba/foco (item 7 da Fase B)~~ — **fechado em 13/10/2026** (`src/data/foco.ts`, debounce 30 s, guarda de sessão).
-- ⚠️ Conta Auth de usuário **Inativo** não é excluída (não há `excluir` na API) — fora do escopo desta rodada.
+- ✅ ~~Conta Auth de usuário **Inativo** não é excluída~~ — **fechado em 13/10/2026**: a ação `excluir` entrou na `api/usuarios.mjs` e no `/usuarios` (apaga a conta Auth **e** o cadastro; autoexclusão bloqueada no servidor). Pela UI um Admin já consegue limpar contas inativas — vira rotina de administração, não mais dívida de código.
 - ✅ ~~**E2E de produção não rodou em 13/10**~~ — **rodado em 13/10/2026**: 18 checks, 0 falhas, 0 erros de console (ver "Funcionalidade nova (13/10/2026) — Fase E item 14 e E2E de produção"). Achou e corrigiu o bug do bloco de sequência (`740d136`).
 - ✅ ~~**`Backup do banco` falhando no Actions**~~ — **consertado em 13/10/2026** (`f517af6`): dump pela Management API com o PAT, sem a senha do banco. Rodada manual verde ([38413884138](https://github.com/wafeitoza/Sistema-de-T.I/actions/runs/38413884138)) + **restore validado num Postgres 17 descartável** (16 tabelas, 5 contas auth com bcrypt). Próxima rodada agendada: **segunda 19/10/2026, 06:30 UTC**.
 - ⚠️ **O PAT `sbp_fc78582b…` NÃO deve mais ser revogado** — virou o secret `SUPABASE_ACCESS_TOKEN` e a rodada semanal de backup depende dele. É de acesso total e não expira. Para estreitar no futuro: criar o secret `SUPABASE_DB_URL` (pooler, porta 6543) e revogar o PAT; o script trata os dois caminhos e prefere o DB_URL.
@@ -254,7 +272,7 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
 
 ### Fase C — Login e sessão reais ✅ CONCLUÍDA (06/10/2026)
 8. ✅ Login e-mail+senha (Supabase Auth) — `src/data/auth.ts` + `LoginPage`; no modo Supabase **os cards de demonstração somem** (no modo local continuam)
-9. ✅ Cadastro de usuários por Admin (senha provisória → troca no 1º login) — `api/usuarios.mjs` (Vercel Function) + `src/data/admin.ts` + botão "Nova senha"; `usuarios.perfil` alimenta `permissions.ts`
+9. ✅ Cadastro de usuários por Admin (senha provisória → troca no 1º login) — `api/usuarios.mjs` (Vercel Function) + `src/data/admin.ts` + botões "Nova senha" e **"Excluir"** (conta Auth + cadastro, autoexclusão bloqueada no servidor); `usuarios.perfil` alimenta `permissions.ts`
 10. ✅ Sessão persistida e sincronizada com `useAuthStore` — `persistSession`/`autoRefreshToken` + `restaurarSessao()` antes do boot renderizar
 
 **Escopo extra que entrou:**
@@ -349,4 +367,4 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
 - ✅ ~~**Revogar o token da Vercel** (`vcp_8aAoy...`)~~ — **feito em 08/10/2026**: ausente da lista de tokens da conta e `Revoked` vazio, com confirmação do usuário; token de CLI antigo (`Vercel CLI on iMac…`, 08/08/2025) também eliminado na mesma conferência.
 - ✅ ~~Env vars da Vercel + E2E de produção~~ — **feitos em 08/10/2026** (produção roda em modo Supabase; `/api/usuarios` responde 405/401/200 conforme o caso, nunca mais 500).
 - ✅ **Ordem do deploy da Fase D**: migrations já estão no banco (07/10) — sobra só o deploy do frontend com as env vars.
-- ⚠️ IDs de `ATIVOS` e de itens de estoque calculados no cliente; recarregar ao voltar à aba/foco; conta Auth de usuário Inativo não é excluída — pós-Fase C.
+- ✅ ~~IDs de `ATIVOS` e de itens de estoque calculados no cliente; recarregar ao voltar à aba/foco; conta Auth de usuário Inativo não é excluída~~ — **os três fechados em 13/10/2026**: sequência do servidor (migration `20261013100000` + fix do bloco, `740d136`), refetch no foco com debounce de 30 s (`src/data/foco.ts`) e exclusão de usuário pela UI com a ação `excluir` na API.

@@ -189,4 +189,61 @@ describe('modo Supabase — sequências com bloco', () => {
     // o valor local continua funcionando; o bloco vem com `baixarDados()` ao logar
     expect(repository.proximaSequencia('SET')).toBe(1)
   })
+
+  // Regressão do E2E de produção de 13/10/2026: `prepararBlocos()` roda a cada
+  // `baixarDados()` (login, foco da aba, F5) e reservava bloco novo mesmo com
+  // o anterior intocado — cada volta de aba queimava 26 × 50 = 1300 números e
+  // o primeiro ativo do sistema saiu NOTE-051 em vez de NOTE-001.
+  it('prepararBlocos não reserva de novo quem já tem bloco com folga', async () => {
+    const { repository } = await carregar()
+    mocks.proximaSequenciaRemota.mockImplementation((_nome, qtd) => Promise.resolve(qtd))
+    await repository.prepararBlocos()
+    // ['SET', 'SOL'] no mock → uma chamada por nome
+    expect(mocks.proximaSequenciaRemota).toHaveBeenCalledTimes(2)
+
+    // simulando o foco da aba: baixarDados chama carregarSequencia + prepararBlocos
+    repository.carregarSequencia('SET', 50)
+    await repository.prepararBlocos()
+
+    expect(mocks.proximaSequenciaRemota).toHaveBeenCalledTimes(2)
+    expect(repository.limiteDeSequencia('SET')).toBe(50)
+    // e o contador local não andou: o bloco 1..50 é nosso, não sobra nada
+    expect(repository.proximaSequencia('SET')).toBe(1)
+  })
+
+  it('carregarSequencia não pula o contador para o topo do próprio bloco', async () => {
+    const { repository } = await carregar()
+    mocks.proximaSequenciaRemota.mockImplementation((_nome, qtd) => Promise.resolve(qtd))
+    await repository.prepararBlocos()
+    expect(repository.proximaSequencia('SET')).toBe(1)
+
+    // o servidor devolve 50 porque FOMOS NÓS que reservamos 1..50 há um instante
+    repository.carregarSequencia('SET', 50)
+
+    expect(localStorage.getItem('ITSTOCK_SEQ_SET')).toBe('1')
+    expect(repository.proximaSequencia('SET')).toBe(2)
+  })
+
+  it('mantém o bloco quando OUTRO cliente passou do nosso topo (sem colisão)', async () => {
+    const { repository } = await carregar()
+    mocks.proximaSequenciaRemota.mockImplementation((_nome, qtd) => Promise.resolve(qtd))
+    await repository.prepararBlocos()
+    expect(repository.proximaSequencia('SET')).toBe(1)
+
+    // outro navegador já reservou 51..120: o servidor está em 120, mas o
+    // bloco 1..50 continua exclusivamente nosso — pular seria desperdiçá-lo
+    repository.carregarSequencia('SET', 120)
+    await repository.prepararBlocos()
+    expect(repository.limiteDeSequencia('SET')).toBe(50)
+    expect(localStorage.getItem('ITSTOCK_SEQ_SET')).toBe('1')
+
+    // esgota o bloco: a próxima reserva volta do servidor JÁ acima do outro
+    mocks.proximaSequenciaRemota.mockResolvedValue(170)
+    for (let i = 0; i < 24; i++) expect(repository.proximaSequencia('SET')).toBe(2 + i)
+    await vi.waitFor(() => expect(repository.limiteDeSequencia('SET')).toBe(170))
+
+    // base 170-50=120 sobrescreve o contador local: nunca reusa 1..50
+    expect(localStorage.getItem('ITSTOCK_SEQ_SET')).toBe('120')
+    expect(repository.proximaSequencia('SET')).toBe(121)
+  })
 })

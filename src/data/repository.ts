@@ -109,9 +109,13 @@ export function proximaSequencia(nome: string): number {
   return proximo
 }
 
+function blocoInsuficiente(nome: string): boolean {
+  const limite = blocos.get(nome) ?? 0
+  return limite - leiaSEQ(nome) <= PREFETCH
+}
+
 function garanteReserva(nome: string, usado: number): void {
-  const limite = blocos.get(nome)
-  if (limite === undefined || usado > limite || limite - usado <= PREFETCH) {
+  if (usado > (blocos.get(nome) ?? 0) || blocoInsuficiente(nome)) {
     void reservar(nome)
   }
 }
@@ -151,16 +155,29 @@ export function garantirBloco(nome: string, necessario: number): void {
 }
 
 /**
- * Reserva os blocos iniciais antes do app renderizar: assim o primeiro ID
- * gerado já cai dentro de um bloco exclusivo deste cliente.
+ * Garante bloco para os nomes que ainda não têm (ou estão quase no fim).
+ *
+ * Só reserva onde falta: como roda a cada `baixarDados()` (login, foco da
+ * aba, F5), reservar sempre queimaria 26 × 50 = 1300 números do servidor
+ * por volta de aba — medido em produção em 13/10/2026, quando o E2E viu a
+ * sequência de NOTE ir de 0 a 250 e o primeiro ativo sair NOTE-051.
  */
 export async function prepararBlocos(): Promise<void> {
-  await Promise.all(NOMES_SEQUENCIA.map((nome) => reservar(nome)))
+  const faltando = NOMES_SEQUENCIA.filter((nome) => blocoInsuficiente(nome))
+  await Promise.all(faltando.map((nome) => reservar(nome)))
 }
 
-/** Espelha o valor do servidor no localStorage (chamado no boot). */
+/**
+ * Espelha o valor do servidor no localStorage (chamado no boot).
+ *
+ * No-op quando este cliente já tem bloco: o topo do servidor pode ser
+ * justamente o bloco que reservamos há um instante e ainda não usamos, e
+ * pular o contador para lá desperdiçaria o bloco inteiro. Bloco exclusivo
+ * é nosso até o fim — mesmo que outro cliente já tenha ido além.
+ */
 export function carregarSequencia(nome: string, valor: number): void {
   if (!Number.isFinite(valor)) return
+  if (blocos.has(nome)) return
   const local = leiaSEQ(nome)
   if (valor > local) gravaSEQ(nome, valor)
 }

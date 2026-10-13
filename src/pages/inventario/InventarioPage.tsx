@@ -104,6 +104,12 @@ export function InventarioPage() {
   )
 
   const valorTotal = filtrados.reduce((soma, a) => soma + (a.valorAquisicao ?? 0), 0)
+  // Valor de estoque é global: os filtros desta página são de ativos
+  // (status/setor/tipo), não de item de reposição.
+  const valorEstoque = itens.reduce(
+    (soma, i) => soma + i.quantidade * (i.precoUnitario ?? 0),
+    0,
+  )
   const emManutencao = filtrados.filter((a) => a.status === 'Manutenção').length
   const descartados = filtrados.filter((a) => a.status === 'Descartado').length
 
@@ -347,9 +353,10 @@ export function InventarioPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Resumo titulo="Ativos no relatório" valor={String(filtrados.length)} />
             <Resumo titulo="Valor total" valor={formatarMoeda(valorTotal)} />
+            <Resumo titulo="Valor em estoque" valor={formatarMoeda(valorEstoque)} />
             <Resumo titulo="Em manutenção" valor={String(emManutencao)} destaque={emManutencao > 0} />
             <Resumo titulo="Descartados" valor={String(descartados)} />
           </div>

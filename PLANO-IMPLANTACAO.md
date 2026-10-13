@@ -1,6 +1,6 @@
 # PLANO DE IMPLANTAÇÃO E PONTO DE RETOMADA
 
-> Documento de continuidade — **última atualização: 07/10/2026 (Fase A + B + C + D — segurança server-side)**
+> Documento de continuidade — **última atualização: 13/10/2026 (pendências da Fase C fechadas: IDs por sequência do servidor + recarga ao voltar à aba)**
 > Leia este arquivo para continuar de onde paramos.
 
 ---
@@ -8,8 +8,8 @@
 ## 1. Estado atual do projeto
 
 **Repo:** `https://github.com/wafeitoza/Sistema-de-T.I.git` (branch `main`)
-**Produção:** https://it-stock-react.vercel.app (build `index-nPhVyPbp.js` = Fase D + hardening + fixes, **modo Supabase real desde 08/10/2026**)
-**Diretório:** `/home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
+**Produção:** https://it-stock-react.vercel.app (bundle `App-CY5piBLw.js` = pendências da Fase C fechadas, **modo Supabase real desde 08/10/2026**)
+**Diretório:** `/home/william/Projetos/Projetos AI/Sistema de T.I NTE/`
 
 ### Commits (rodada de melhorias concluída)
 
@@ -32,25 +32,28 @@
 | — | `5a915ac` | "Empréstimos" → **"Empréstimos de Equipamentos"** (menu, rotas, títulos internos) |
 | — | `c31ee83` | Fonte principal **Inter** (JetBrains Mono continua no monoespaçado) |
 | D | *(Fase D — ver seção 3)* | RLS por perfil, aprovação por UUID no banco, `anon` sem tabelas, auditoria assinada, restore validado |
+| — | `444b09e` | **Recarrega os dados ao voltar à aba** (item 7 da Fase B, pendente desde o modo dual) |
+| — | `d488999` | **IDs de ativo e de item de estoque saem da sequência do servidor** (pendência adiada na Fase C) |
 
-### Qualidade (validado na última entrega — 07/10/2026)
+### Qualidade (validado na última entrega — 13/10/2026)
 - `npm run lint` → **0 warnings, 0 erros**
 - `npx tsc -b` → OK (`tsc --noEmit` na raiz não checa `tsconfig.app.json` — **use `tsc -b`**)
-- `npm test` → **141/141** (Vitest + happy-dom, 16 arquivos)
+- `npm test` → **161/161** (Vitest + happy-dom, 18 arquivos)
 - `npm run build` → OK (`tsc -b` incluído)
-- **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **81 checagens, 0 falhas**
+- **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **81 checagens, 0 falhas** (rodada de novo em 13/10 sobre as 14 migrations)
+- **RLS do exterior (13/10/2026, só com a chave pública, contra produção)**: 8 checks, 0 falhas — `anon` → 401 em `ativos`/`auditoria`/`usuarios`/`sequencias` e INSERT negado; `proxima_sequencia`/`reservar_sequencia` → `42501 permission denied`; `solicitacao_por_token` → 200 (link público intacto).
 - E2E Chrome headless: local e produção com **0 erros de console**
-  (últimas rodadas: **produção modo Supabase 08/10/2026 — `cdp-prod-supa.mjs` 21 + `cdp-prod-supa2.mjs` 19 + `cdp-prod-supa3.mjs` 14 = 54 checks, 0 falhas** · `cdp-fase-d.mjs` 13 checks (Fase D, local) · `cdp-login.mjs` 21 checks (Fase C, local) · `cdp-etiquetas.mjs` 21 · `cdp-persistencia.mjs` 15)
+  (13/10/2026 modo local: **`/tmp/opencode/e2e-local.mjs` 13 checks, 0 falhas** — login por card → criar 2 ativos (`NOTE-004` sobre o seed `NOTE-001..003`) → criar item de estoque (`Item-007`) → dispatch de `visibilitychange`/`focus` sem quebrar nada → F5 mantém o código → 0 erros de console · últimas rodadas de produção: **08/10/2026 — `cdp-prod-supa.mjs` 21 + `cdp-prod-supa2.mjs` 19 + `cdp-prod-supa3.mjs` 14 = 54 checks, 0 falhas** · `cdp-fase-d.mjs` 13 · `cdp-login.mjs` 21 · `cdp-etiquetas.mjs` 21 · `cdp-persistencia.mjs` 15)
 
 ### Estado do Git
-`main` sincronizada com `origin/main`, topo = **Fase D + hardening + 2 fixes de sincronização**
-(`ff8c46c` audita perfis sem leitura · `4aded49` boot anônimo sem sync · `5122eb8` anon sem helpers).
+`main` sincronizada com `origin/main`, topo = **`d488999`** (pendências da Fase C fechadas).
 **Produção em modo Supabase real desde 08/10/2026**: env vars criadas na Vercel + Redeploy, bundle
-`index-nPhVyPbp.js` com a URL do projeto e a chave publishable embutidas (a `sb_secret_` **não** vaza —
+com a URL do projeto e a chave publishable embutidas (a `sb_secret_` **não** vaza —
 o único `sb_secret_` do bundle é a string literal do prefixo dentro do próprio `supabase-js`).
-As migrations da Fase D + as 2 de hardening do `anon` **aplicadas no banco de produção** e conferidas
-objeto a objeto; histórico `supabase_migrations.schema_migrations` alinhado (10/10) e `supabase db push`
-responde `upToDate: true`.
+As 14 migrations estão aplicadas no banco de produção (histórico `upToDate: true`).
+O E2E de produção **não foi re-rodado em 13/10** — o smoke foi: bundle novo no ar com as duas
+entregas, RLS do exterior 8/8 e 15 sequências conferidas no banco real. Rodar o E2E de produção
+completo na próxima vez que houver senha de teste em mãos.
 
 ### Funcionalidade nova (06/10/2026) — aba **Empréstimos**
 Controle de empréstimo de equipamento de informática para **uso pessoal**, em `/emprestimos` (seção Operação, perfis Admin/Gerente/Técnico).
@@ -121,7 +124,27 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 
 **Ordem de deploy (importa):** 1) ✅ aplicar as 2 migrations (feito em 07/10/2026) → 2) ✅ criar as env vars da Vercel e Redeploy (feito em 08/10/2026) → 3) ✅ produção validada em modo Supabase (E2E 54/54 em 08/10/2026).
 
-**CLI do Supabase (07/10/2026):** `npm i -g supabase` → `supabase login` → `supabase init` (cria `supabase/config.toml` + `supabase/.gitignore`, ambos versionados) → `supabase link --project-ref ftwaxhngujwswaauqfbn`. Como as 8 primeiras migrations entraram pelo SQL Editor, o histórico remoto estava vazio e o `db push` queria reaplicar as 10 — feito *baseline* com `supabase migration repair <versão> --status applied` (8×) e depois as 2 novas entraram via `db push`. Tudo pela Management API, **sem precisar da senha do banco**. Próximas migrations: `supabase db push --dry-run` → `supabase db push`.
+**CLI do Supabase (07/10/2026 · atualizado em 13/10/2026):** `npm i -g supabase` → `supabase login` → `supabase init` (cria `supabase/config.toml` + `supabase/.gitignore`, ambos versionados) → `supabase link --project-ref ftwaxhngujwswaauqfbn`. Como as 8 primeiras migrations entraram pelo SQL Editor, o histórico remoto estava vazio e o `db push` queria reaplicar as 10 — feito *baseline* com `supabase migration repair <versão> --status applied` (8×) e depois as 2 novas entraram via `db push`. Tudo pela Management API, **sem precisar da senha do banco**. Fluxo de migration: `supabase db push --dry-run` → `db push` → conferir com `supabase db query --linked`. **Gotchas de 13/10:** o token vai **pelo stdin** (`printf '%s' "$PAT" | supabase login`), nunca em argv (aparece na lista de processos); `supabase logout` pede confirmação e morre em output JSON — usar **`supabase logout --yes`**; e a Management API **não aceita o próprio PAT** para revogação (`DELETE /platform/profile/access-tokens/{id}` → `401 "Unsupported access token"`) — revogar é sempre no dashboard.
+
+### Funcionalidade nova (13/10/2026) — **pendências da Fase C fechadas**
+
+Duas pendências que o plano arrastava desde a Fase B/C foram fechadas. Nada mudou visualmente.
+
+**1. Recarrega os dados ao voltar à aba** (item 7 da Fase B — `444b09e`)
+- `src/data/foco.ts` (novo) — escuta `visibilitychange` (só quando `visible`) e `window.focus` e chama `baixarDados()`, que já baixa as 14 coleções, re-lê os stores (`recarregarTodasAsLojas`) e reserva blocos de ID.
+- **Duas proteções, porque o free tier cobra cada chamada**: no máximo **1 download a cada 30 s** (`INTERVALO_RECARREGA_MS`) e **nada roda sem sessão** (com o RLS da Fase D o `anon` não lê nenhuma tabela — download sem sessão só geraria 401). Há também trava de "recarga em andamento".
+- Instalado no `App.tsx` via `useEffect` com cleanup; **no-op no modo local** (o localStorage não muda em outro navegador).
+- **Testes**: `src/data/foco.test.ts` (6 casos, fake timers) — debounce, sem sessão, recarga em andamento, cleanup, modo local.
+- ⚠️ **Limitação honesta**: um download sobrescreve o espelho com o estado do servidor. A escrita local é imediata (fire-and-forget), então a janela de conflito é de milissegundos — mas se um dia existir escrita offline fila, este listener precisa olhar isso. Hoje não existe.
+
+**2. IDs de ativo e de item de estoque saem da sequência do servidor** (`d488999`)
+- **O problema**: `NOTE-001` e `Item-001` eram calculados **no cliente** varrendo o espelho. Duas pessoas abrindo o mesmo formulário geravam o mesmo código e o `sincronizarColecao` (diff por PK → upsert) **sobrescrevia o registro da outra** — perda silenciosa de dados. As outras 11 coleções já usavam blocos de sequência atômicos.
+- **Migration** `20261013100000_sequencias_ativos_estoque.sql` — cria 14 sequências `ATV_<prefixo>` (uma por tipo de ativo, os mesmos 14 prefixos de `PREFIXOS`) + `ITEM`, **semeadas no maior código já existente no banco** (`substring` com regex + `greatest(sequencias.valor, excluded.valor)` no `on conflict`). Sem o seed no maior valor real, o próximo notebook viraria `NOTE-001` de novo e colidiria com o que já está lá. **Sem função nova → sem o gotcha do `anon`** (nenhum revoke a fazer; a escrita continua só via `reservar_sequencia`, já revogada do `anon`).
+- **App**: `nomeSequenciaAtivo(tipo)`/`SEQUENCIA_ITEM`/`formatarCodigoAtivo`/`formatarCodigoItem` em `codes.ts` (formatador **único** para os dois modos) · `NOMES_SEQUENCIA` em `api.ts` ganhou os 15 nomes · `criar()` de `ativos.ts` e `criarItem()` de `estoque.ts` passaram a consumir `proximaSequencia()` no modo Supabase; **no modo local continua saindo do espelho**.
+- **Backup**: `SEQUENCIAS_BACKUP` passou a ser **derivada de `NOMES_SEQUENCIA`** — as duas listas não podem divergir, senão um restore re-emite código já usado. Restore de backup antigo (só 11 sequências) **não regride** o valor (`Math.max` + `garantirBloco`, já era assim).
+- **Testes**: `src/store/identificadores.test.ts` (6 casos, mock do repository — os 2 modos) + `codes.test.ts` (+4) + `backup.test.ts` (+2) → 161/161.
+- **Validação**: Docker Postgres 17 com as 14 migrations → sequências conferidas com dados de verdade (`NOTE-017`/`MON-002`/`CPU-099`/`Item-011` → próximo bloco começa em 18/2/100/12) · suíte **RLS 81/81** · produção: `db push` → histórico **14/14, `upToDate: true`**, 15 sequências no banco (banco segue zerado de ativos/estoque, como decidido na Fase A).
+- **Gotcha do boot**: `prepararBlocos()` hoje reserva **26** blocos (11 + 15), uma chamada por nome. Se algum dia o boot ficar lento, é o primeiro suspeito — dá para agrupar os `ATV_*` numa RPC só.
 
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
@@ -131,10 +154,12 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 - ✅ **Env vars da Vercel criadas** (08/10/2026): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (as 3 últimas sem prefixo `VITE_`, só para a Function) + Redeploy.
 - ✅ **E2E de produção em modo Supabase rodou** (08/10/2026): 54 checks, 0 falhas — login por e-mail/senha com provisória, troca obrigatória (modal incontornável), dados vindos do banco nas 6 rotas, sessão persistente, solicitação → link UUID → aprovação → uso único → token inválido, `/api/usuarios` criar/redefinir + **Visualizador negado com 403**, perfis sem acesso indevido, **0 erros de console**.
 - 🐛 **2 bugs de produção encontrados e corrigidos pelo E2E** (commits `4aded49` e `ff8c46c`): (1) o boot anônimo gerava o seed de SETORES e tentava subi-lo como `anon` → 401 + toast; agora `sincronizar()`/`reservar()` exigem sessão (guarda em `repository.ts`); (2) o sync da auditoria usava upsert e o Postgres exige **SELECT** da linha conflitante para detectar conflito, mas `auditoria_leitura` é `pode_gerenciar()` → o login de um Visualizador dava 403 e nunca era auditado; agora é INSERT puro com 23505 tratado como "já existe".
-- ⚠️ IDs de `ATIVOS` (`NOTE-001`) e de itens de estoque (`Item-001`) ainda são calculados **no cliente** a partir do espelho — dois navegadores podem gerar o mesmo código e o upsert sobrescreve. As outras 11 coleções usam blocos de sequência do servidor. → **adiado para depois da Fase C**
-- ⚠️ Recarregar dados ao voltar à aba/foco (item 7 da Fase B) — **ainda pendente**.
-- ⚠️ Usuário **Inativo** perde o acesso no app, mas a conta Auth continua existindo (não há `excluir` na API) — fora do escopo desta rodada.
-- Permissões vigentes em `src/lib/permissions.ts` (ACESSO_ROTA) — base que o RLS da Fase D espelha.
+- ✅ ~~IDs de `ATIVOS` e de itens de estoque calculados no cliente~~ — **fechado em 13/10/2026** (migration `20261013100000` + stores consumindo `proximaSequencia()`; ver "Funcionalidade nova (13/10/2026)").
+- ✅ ~~Recarregar dados ao voltar à aba/foco (item 7 da Fase B)~~ — **fechado em 13/10/2026** (`src/data/foco.ts`, debounce 30 s, guarda de sessão).
+- ⚠️ Conta Auth de usuário **Inativo** não é excluída (não há `excluir` na API) — fora do escopo desta rodada.
+- ⚠️ **E2E de produção não rodou em 13/10** — o smoke foi bundle no ar + RLS do exterior 8/8 + 15 sequências no banco real. Falta a rodada completa (login real) na próxima vez que houver senha de teste.
+- ⚠️ **`Backup do banco` continua falhando no Actions** (rodada agendada de 12/10/2026, run [38273938404](https://github.com/wafeitoza/Sistema-de-T.I/actions/runs/38273938404)): o secret **`SUPABASE_DB_URL` não existe** no repo (só `BACKUP_PASSPHRASE` foi criado em 08/10). **Hoje não há backup do banco de produção** e o free tier não tem backup automático. Conserto: `gh secret set SUPABASE_DB_URL` com a connection string do **pooler** (porta **6543**, Project Settings → Database) e depois `workflow_dispatch` para validar dump + round-trip.
+- ⚠️ Permissões vigentes em `src/lib/permissions.ts` (ACESSO_ROTA) — base que o RLS da Fase D espelha.
 
 ---
 
@@ -186,7 +211,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 4. ✅ `src/data/api.ts` — `DEFINICOES` (14 coleções → tabela + PK + modo), mapeamento camel↔snake, `DD/MM/AAAA`↔`AAAA-MM-DD`, numeric→number, timestamptz→ISO; `carregarTudo()` (allSettled + sequências), `sincronizarColecao()` (diff por PK → upsert / `append` p/ LOG = **INSERT puro com 23505 tratado como "já existe"** desde `ff8c46c` — o upsert exigia SELECT da linha conflitante e negava o log de quem não lê auditoria / contagens com delete+insert de `contagem_itens`), `proximaSequenciaRemota()` (RPC)
 5. ✅ **Os 11 stores não mudaram**: `src/data/repository.ts` manteve o contrato síncrono — grava o espelho na hora e dispara o sync em background (falha → toast de erro). Menos risco que refatorar stores.
 6. ✅ Seed só no modo local — `bootstrap.iniciar()` virou assíncrono e o `main.tsx` monta o `App` só depois dele; no modo Supabase ele baixa as tabelas e **não** aplica seed (instância começa zerada, exceto os 4 usuários demo)
-7. ❌ Recarregar ao voltar à aba/foco — **ainda pendente**
+7. ✅ Recarregar ao voltar à aba/foco — **fechado em 13/10/2026** (`src/data/foco.ts`)
 
 **Modo dual (decisão sua):** sem `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` o app roda 100% localStorage (seed/demo inclusive); com as variáveis liga o Supabase. `src/data/client.ts` exporta `modoSupabase` e o **modo `test` é bloqueado de propósito** — o Vitest carrega o `.env.local`, sem a trava os testes gravariam no banco de produção (foi pego no caminho; `src/data/client.test.ts` é a trava).
 
@@ -205,7 +230,7 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 10. ✅ Sessão persistida e sincronizada com `useAuthStore` — `persistSession`/`autoRefreshToken` + `restaurarSessao()` antes do boot renderizar
 
 **Escopo extra que entrou:**
-- ✅ `keepalive` nas escritas (risco adiado da Fase B) · ❌ IDs de ATIVOS/estoque por sequência (continua pendente)
+- ✅ `keepalive` nas escritas (risco adiado da Fase B) · ✅ **IDs de ATIVOS/estoque por sequência do servidor — fechados em 13/10/2026** (ver seção "Funcionalidade nova (13/10/2026)")
 - **8ª migration** `20261006040000_usuarios_auth_id.sql` (coluna + índice único) — **já aplicada no banco real** (os 4 usuários têm `auth_id`)
 - Contas Auth dos 4 usuários demo já criadas e vinculadas
 - `scripts/gerar-senhas.mjs` para zerar senhas de teste (service_role fora do repo)
@@ -242,14 +267,16 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 - `npm run lint` · `npx tsc -b` (o `tsc --noEmit` solto **não** checa o `tsconfig.app.json`) · `npm run build` · `npm test` · `npm run preview` (porta 4173)
 
 ### E2E (Chrome headless)
-- CDP porta **9225** (`curl http://127.0.0.1:9225/json/list`)
-- Scripts em `/tmp/opencode/cdp-*.mjs` (ex.: `cdp-login.mjs` 21 checks · `cdp-etiquetas.mjs` 21 · `cdp-persistencia.mjs` 15)
+- CDP porta **9225** (`curl http://127.0.0.1:9225/json/list`) · target novo: `PUT /json/new?url` · WS global no Node 26 (sem biblioteca)
+- Scripts em `/tmp/opencode/*.mjs` — hoje só existe **`e2e-local.mjs` (13 checks, modo local)**, reescrito em 13/10/2026 (`cdp-login.mjs` 21 · `cdp-etiquetas.mjs` 21 · `cdp-persistencia.mjs` 15 · `cdp-prod-supa*.mjs` 54 foram perdidos)
 - ⚠️ `/tmp` é limpo entre sessões — **os scripts precisam ser reescritos** quando isso acontece
-- **Antes de rodar**: `pkill -f "remote-debugging-port=92[2]5"` em um comando **separado** (se o mesmo comando também lançar o Chrome, o `pkill` mata o próprio shell) — chrome órfão de execução anterior faz o script anexar no perfil velho (login já feito + dados editados = checks falsos)
-- **Chrome**: `google-chrome --headless=new --no-sandbox --remote-debugging-port=9225 --user-data-dir=/tmp/opencode/chrome-perfil --window-size=1400,900 about:blank`
-- **Quirks**: input React → setter nativo do prototype + `Event('input',{bubbles:true})`; select → setter de HTMLSelectElement + `Event('change')`; modal `[role=dialog]`; logout → botão `[aria-label="Sair"]` (sidebar fica no DOM mesmo oculta); `window.print()` é no-op no headless
-- **Ruído aceito no login**: a tentativa de senha errada gera `400` em `/auth/v1/token` (e o Chrome loga "Failed to load resource") — o script filtra só esse caso e falha para qualquer outra 4xx/5xx
-- Validar deploy: hash de `dist/assets/index-*.js` == `<script>` de `https://it-stock-react.vercel.app/`
+- **Antes de rodar**: `pkill -f "remote-debugging-port=92[2]5"` em um comando **separado** (o colchete não é frescura: sem ele o `pkill -f` casa com o próprio comando e **mata o shell** — aconteceu de novo em 13/10) — chrome órfão de execução anterior faz o script anexar no perfil velho (login já feito + dados editados = checks falsos)
+- **Chrome**: o binário **não está no PATH** — usar `/opt/google/chrome/chrome --headless=new --no-sandbox --remote-debugging-port=9225 --user-data-dir=/tmp/opencode/chrome-perfil --window-size=1400,900 about:blank`
+- **O perfil persiste entre execuções** → o script precisa `localStorage.clear()` + navegar de novo no início, senão o seed não renasce limpo e os códigos não batem
+- **Validar deploy**: o index.html só cita o `index-*.js`, mas **o código do app está no chunk `App-*.js`** (o `main.tsx` importa o `App` dinamicamente). Conferir `grep '<string-distinta>' assets/App-*.js` — checar só o `index-*.js` dá falso negativo. As sequências (`ATV_`, `ITEM`) ficam no `index-*.js` por irem pelo `api.ts`
+- **Quirks**: input React → setter nativo do prototype + `Event('input',{bubbles:true})`; select → setter de HTMLSelectElement + `Event('change')`; modal `[role=dialog]`; campos **não têm `name`/`id`** — só `placeholder`; codes de linha da tabela vêm com `\t` (`.trim()` senão o `.includes` falha); logout → botão `[aria-label="Sair"]`; `window.print()` é no-op no headless
+- ⚠️ **Cuidado com o Chrome do desktop**: `pgrep/grep "9225"` casa com o renderer normal do seu Chrome (argumentos longos) — nunca matar sem confirmar que é o headless
+- **Ruído aceito no login**: a tentativa de senha errada gera `400` em `/auth/v1/token` — o script filtra só esse caso e falha para qualquer outra 4xx/5xx
 
 ### Datas e segurança
 - Campos editáveis em `DD/MM/YYYY`; `criadoEm`/`dataHora` ISO; usar `formatarData`/`diasAte`/`dataBRparaDate` (`src/lib/format.ts`)
@@ -267,19 +294,19 @@ docker exec -i pg-rls psql -U postgres -d itstock -v ON_ERROR_STOP=1 < supabase/
 
 ## 5. Como retomar (checklist)
 
-1. Abrir o projeto: `cd /home/williamfeitoza/IT-Stock-Global/Projects/it-stock-react/`
-2. `git status` + `git log --oneline -3` → deve estar limpo, topo `ff8c46c` (Fase D + hardening + fixes) ou posterior
+1. Abrir o projeto: `cd "/home/william/Projetos/Projetos AI/Sistema de T.I NTE/"`
+2. `git status` + `git log --oneline -3` → deve estar limpo, topo `d488999` (pendências da Fase C) ou posterior
 3. Conferir este arquivo (`PLANO-IMPLANTACAO.md`) e a seção 3
 4. **Próximo passo (nesta ordem):**
-   1. ✅ **2 migrations da Fase D aplicadas** (07/10/2026) + **2 de hardening do `anon`** (08/10/2026) — histórico alinhado pela CLI (`supabase migration repair --status applied` + `supabase db push` → *up to date*); conferência de RLS feita com `supabase db query --linked`, teste completo no `docker` descartável (`supabase/tests/rls_fase_d.sql` → 81 checks) e teste externo com a chave pública (`/tmp/opencode/testa-rls-externo.sh` → 8 checks);
-   2. ✅ **5 env vars criadas na Vercel + Redeploy** (08/10/2026)
-   → ✅ **E2E de produção validado** (08/10/2026): 54 checks, 0 falhas, 0 erros de console — provisória → troca · rotas lendo do banco · solicitação → link UUID → aprovação de uso único → token inválido · `/api/usuarios` criar/redefinir com Visualizador negado (403) · perfis sem acesso indevido · limpeza (banco termina com os 4 usuários + 7 setores, 0 solicitações de teste).
-   → ✅ **Coluna `solicitacoes.token` removida** (08/10/2026): migration `20261008030000_remove_token_hmac.sql` aplicada (`db push` → histórico 13/13, coluna some do banco) · Docker 13 migrations + suíte **81/81** · E2E do fluxo de aprovação **19/19** · limpeza (0 solicitações).
-   **Sobra desta etapa: nenhuma** — PAT do Supabase e token da Vercel revogados/eliminados e confirmados em 08/10/2026 (ver Pendências).
-5. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`
-6. E2E local sempre que mexer em login/dados: `npm run build` + `npm run preview` (4173) + Chrome na 9225 + `node /tmp/opencode/cdp-login.mjs "<provisória>"`
-7. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
-8. ✅ Ao final: token da Vercel (`vcp_8aAoy...`) eliminado e conferido em 08/10/2026 (ver Pendências; o PAT do Supabase também foi revogado — sem PAT, novas migrations exigem `supabase login`)
+   1. ✅ **14 migrations aplicadas no banco de produção** (a última, `20261013100000`, em 13/10/2026 via `supabase db push` → histórico `upToDate: true`) + **15 sequências conferidas no banco real** + **RLS do exterior 8/8** com a chave pública.
+   2. ✅ **Deploy do frontend** (13/10/2026) — bundle `App-CY5piBLw.js` no ar com as duas entregas; CI verde ([run 38405641087](https://github.com/wafeitoza/Sistema-de-T.I/actions/runs/38405641087)).
+   → ⚠️ **Sobra desta etapa: o E2E de produção completo** (login real) — o smoke foi feito, a rodada completa não. Rodar na próxima vez que houver senha de teste em mãos: `npm run preview` + Chrome 9225 + script reescrito em `/tmp/opencode/` (o `/tmp` zera entre sessões).
+   → ⚠️ **Revogar o PAT `sbp_fc78582b…`** usado em 13/10/2026 — a revogação **não dá pela API** (o próprio PAT responde `401 Unsupported access token` em `DELETE /platform/profile/access-tokens/{id}`; confirmado de novo em 13/10), então é no dashboard: https://supabase.com/dashboard/account/tokens. O `supabase logout --yes` já limpou o `~/.supabase/access-token` local.
+5. **Pendência urgente da Fase E**: o `Backup do banco` está **falhando no Actions** desde a primeira execução agendada (12/10/2026) — falta o secret `SUPABASE_DB_URL`. Ver Pendências.
+6. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`
+7. E2E local sempre que mexer em login/dados: `npm run build` **sem `.env.local`** (para o modo local) + `npm run preview` (4173) + Chrome na 9225 + `node /tmp/opencode/e2e-local.mjs` (13 checks). Com env vars o mesmo build vira modo Supabase.
+8. Deploy: commit + push na `main` → Vercel auto-deploy (~12s) → validar hash + smoke E2E
+9. ⚠️ **Se mexer em migration**: aplicar no banco de produção ANTES do push — a Vercel deploya automático a cada push na `main` e um frontend novo com migration velha faria o app pedir sequência que o servidor não tem. Exige `supabase login` com PAT novo (o anterior é para revogar).
 
 ### Pendências conhecidas
 - ✅ ~~Aplicar as 2 migrations da Fase D no Supabase~~ — **feito em 07/10/2026** (banco conferido: 0 policies temporárias, `anon` sem acesso a tabela).

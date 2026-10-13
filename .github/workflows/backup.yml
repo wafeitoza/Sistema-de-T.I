@@ -1,9 +1,20 @@
 # Fase E, item 14 — backup semanal do banco de produção
 # (PLANO-IMPLANTACAO.md: o free tier do Supabase não tem backup automático).
 #
+# Duas rodadas agendadas até agora, e a primeira (12/10/2026) FALHOU em 15s:
+# o secret SUPABASE_DB_URL nunca tinha sido criado e a senha do banco não
+# estava à mão. `supabase db dump` resolve pela Management API, sem senha —
+# é o caminho daqui pra frente (o script ainda aceita SUPABASE_DB_URL se um
+# dia existir, e o prefere: é o dump mais completo).
+#
 # Secrets exigidos (repo → Settings → Secrets and variables → Actions):
-#   SUPABASE_DB_URL    connection string com senha (Project Settings → Database)
-#   BACKUP_PASSPHRASE  frase-senha do GPG que criptografa o dump
+#   SUPABASE_ACCESS_TOKEN  PAT (sbp_...) — Dashboard → Account → Access Tokens
+#   SUPABASE_PROJECT_REF   ftwaxhngujwswaauqfbn
+#   BACKUP_PASSPHRASE      frase-senha do GPG que criptografa o dump
+#
+# ⚠️ O PAT é de acesso total à conta e não expira. Se o repo for privatizado
+# ou um dia houver vontade de estreitar, trocar pelo caminho 1 do script
+# (SUPABASE_DB_URL, só a senha do banco) — o script trata os dois.
 #
 # Restaurar:
 #   gpg -d backup-AAAA-MM-DD.sql.gz.gpg | gunzip | psql "$SUPABASE_DB_URL"
@@ -24,19 +35,24 @@ concurrency:
 
 jobs:
   backup:
-    name: pg_dump · criptografa · guarda
+    name: dump · criptografa · guarda
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: CLI do Supabase (dump pela Management API)
+        run: npm install -g supabase@2
+
       - name: pg_dump + AES-256 (com round-trip verificado)
         env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: bash scripts/backup-postgres.sh
 
-      # O artefato é o dump GPG (já comprimido) — repo público, então só
+      # o artefato é o dump GPG (já comprimido) — repo público, então só
       # ele é salvo, nunca SQL cru. 90 dias = máximo do plano free.
       - name: Guarda o backup (retenção de 90 dias)
         uses: actions/upload-artifact@v7

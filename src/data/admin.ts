@@ -16,7 +16,7 @@ interface ResultadoConta {
 }
 
 /**
- * Contas de acesso só são criadas/redefinidas pela Vercel Function
+ * Contas de acesso só são criadas/redefinidas/apagadas pela Vercel Function
  * (`api/usuarios.mjs`), porque a chave service_role fica no servidor.
  * O navegador manda o próprio access token; a função confere se quem chamou
  * é Admin antes de tocar no Supabase Auth.
@@ -51,4 +51,12 @@ export function criarConta(dados: DadosConta): Promise<ResultadoConta> {
 /** Gera uma nova senha provisória para uma conta existente. */
 export function redefinirConta(email: string): Promise<ResultadoConta> {
   return chamarApi({ acao: 'redefinir', email })
+}
+
+/**
+ * Apaga a conta de acesso no Supabase Auth e o cadastro em `usuarios`.
+ * Irreversível — a UI só chama depois de confirmação explícita.
+ */
+export function apagarConta(email: string): Promise<ResultadoConta> {
+  return chamarApi({ acao: 'excluir', email })
 }

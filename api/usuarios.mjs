@@ -10,6 +10,7 @@
  * POST /api/usuarios
  *   { acao: 'criar',    nome, email, perfil, setor }  → { email, senhaProvisoria }
  *   { acao: 'redefinir', email }                      → { email, senhaProvisoria }
+ *   { acao: 'excluir',   email }                      → { email, contaApagada }
  */
 const PERFIS = ['Admin', 'Gerente', 'Técnico', 'Visualizador']
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -158,6 +159,67 @@ async function redefinir(cfg, corpo, chamador) {
   return { status: 200, corpo: { email, senhaProvisoria: senha, por: chamador.email } }
 }
 
+/**
+ * Apaga a conta de acesso (Supabase Auth) e o cadastro em `usuarios`.
+ *
+ * A ordem é Auth → cadastro de propósito: se algo falhar no meio, o pior caso
+ * possível é o cadastro órfão — que não concede login — e nunca uma conta viva
+ * sem perfil. E não há rollback (não se recria conta apagada), por isso a
+ * falha no cadastro é reportada com o e-mail no log do servidor.
+ */
+async function excluir(cfg, corpo, chamador) {
+  const email = String(corpo.email ?? '').trim().toLowerCase()
+  if (!RE_EMAIL.test(email)) return { status: 400, corpo: { erro: 'E-mail inválido' } }
+
+  // A autoexclusão trava aqui, não só no botão da UI: um Admin que se apaga
+  // deixa o sistema sem ninguém para gerenciar usuários.
+  if (email === chamador.email) {
+    return { status: 400, corpo: { erro: 'Você não pode excluir a própria conta' } }
+  }
+
+  const consulta = await fetch(
+    `${cfg.url}/rest/v1/usuarios?email=eq.${encodeURIComponent(email)}&select=auth_id`,
+    { headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}` } },
+  )
+  const linhas = await lerJson(consulta)
+  if (!Array.isArray(linhas) || linhas.length === 0) {
+    return { status: 404, corpo: { erro: 'Usuário não encontrado' } }
+  }
+  const authId = linhas[0]?.auth_id ?? null
+
+  let contaApagada = false
+  if (authId) {
+    const auth = await fetch(`${cfg.url}/auth/v1/admin/users/${authId}`, {
+      method: 'DELETE',
+      headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}` },
+    })
+    // 404 significa "já não existe" — e é o que torna a exclusão repetível
+    // depois de uma falha parcial no cadastro.
+    if (!auth.ok && auth.status !== 404) {
+      console.error('[api/usuarios] deleteUser:', auth.status, await lerJson(auth))
+      return { status: 502, corpo: { erro: 'Não foi possível apagar a conta de acesso' } }
+    }
+    contaApagada = true
+  }
+
+  const cadastro = await fetch(
+    `${cfg.url}/rest/v1/usuarios?email=eq.${encodeURIComponent(email)}`,
+    { method: 'DELETE', headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}` } },
+  )
+  if (!cadastro.ok) {
+    console.error('[api/usuarios] delete cadastro:', cadastro.status, email, await lerJson(cadastro))
+    return {
+      status: 502,
+      corpo: {
+        erro: 'A conta de acesso foi apagada, mas o cadastro não. Tente novamente',
+        email,
+      },
+    }
+  }
+
+  return { status: 200, corpo: { email, contaApagada } }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store')
 
@@ -188,7 +250,13 @@ export default async function handler(req, res) {
       const r = await redefinir(cfg, corpo, chamador)
       return res.status(r.status).json(r.corpo)
     }
-    return res.status(400).json({ erro: 'Ação desconhecida (use "criar" ou "redefinir")' })
+    if (corpo.acao === 'excluir') {
+      const r = await excluir(cfg, corpo, chamador)
+      return res.status(r.status).json(r.corpo)
+    }
+    return res
+      .status(400)
+      .json({ erro: 'Ação desconhecida (use "criar", "redefinir" ou "excluir")' })
   } catch (erro) {
     console.error('[api/usuarios] erro inesperado:', erro)
     return res.status(500).json({ erro: 'Erro interno ao gerenciar o usuário' })

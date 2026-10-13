@@ -10,7 +10,7 @@ vi.mock('./client', () => ({
 }))
 vi.mock('./auth', () => ({ tokenAtual: vi.fn(async () => estado.token) }))
 
-const { criarConta, redefinirConta } = await import('./admin')
+const { apagarConta, criarConta, redefinirConta } = await import('./admin')
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
 
@@ -92,6 +92,53 @@ describe('redefinirConta', () => {
   })
 })
 
+describe('apagarConta', () => {
+  it('manda a exclusão para a Vercel Function', async () => {
+    fetchMock.mockResolvedValue(resposta(200, { email: 'ana@empresa.com', contaApagada: true }))
+
+    expect(await apagarConta('ana@empresa.com')).toEqual({ ok: true })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/usuarios')
+    expect(init.method).toBe('POST')
+    expect(init.headers.Authorization).toBe('Bearer jwt-abc')
+    expect(JSON.parse(init.body)).toEqual({ acao: 'excluir', email: 'ana@empresa.com' })
+  })
+
+  it('repassa o 400 de autoexclusão (o servidor recusa, não só a UI)', async () => {
+    fetchMock.mockResolvedValue(
+      resposta(400, { erro: 'Você não pode excluir a própria conta' }),
+    )
+
+    expect(await apagarConta('admin@empresa.com')).toEqual({
+      ok: false,
+      erro: 'Você não pode excluir a própria conta',
+    })
+  })
+
+  it('repassa o 404 de usuário inexistente', async () => {
+    fetchMock.mockResolvedValue(resposta(404, { erro: 'Usuário não encontrado' }))
+
+    expect(await apagarConta('nao-existe@empresa.com')).toEqual({
+      ok: false,
+      erro: 'Usuário não encontrado',
+    })
+  })
+
+  it('repassa a falha parcial: conta apagada mas cadastro não', async () => {
+    fetchMock.mockResolvedValue(
+      resposta(502, {
+        erro: 'A conta de acesso foi apagada, mas o cadastro não. Tente novamente',
+        email: 'ana@empresa.com',
+      }),
+    )
+
+    expect(await apagarConta('ana@empresa.com')).toEqual({
+      ok: false,
+      erro: 'A conta de acesso foi apagada, mas o cadastro não. Tente novamente',
+    })
+  })
+})
+
 describe('modo local', () => {
   it('não existe gestão de contas sem Supabase', async () => {
     estado.modo = false
@@ -104,6 +151,10 @@ describe('modo local', () => {
       ok: false,
       erro: 'Gerência de contas exige o Supabase',
     })
+    expect(await apagarConta('ana@empresa.com')).toEqual({
+      ok: false,
+      erro: 'Gerência de contas exige o Supabase',
+    })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -111,6 +162,10 @@ describe('modo local', () => {
     estado.token = null
 
     expect(await criarConta(DADOS)).toEqual({
+      ok: false,
+      erro: 'Sessão expirada. Entre novamente',
+    })
+    expect(await apagarConta('ana@empresa.com')).toEqual({
       ok: false,
       erro: 'Sessão expirada. Entre novamente',
     })

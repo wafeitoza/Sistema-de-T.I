@@ -1,5 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { Camera, KeyRound, Pencil, Plus, Search } from 'lucide-react'
+import { Camera, KeyRound, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { AjusteFoto } from '../../components/ui/AjusteFoto'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
@@ -11,7 +11,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { CabecalhoTabela, Celula, Linha, Tabela } from '../../components/ui/Tabela'
-import { criarConta, redefinirConta } from '../../data/admin'
+import { apagarConta, criarConta, redefinirConta } from '../../data/admin'
 import { modoSupabase } from '../../data/client'
 import { gravarColecao, lerColecao } from '../../data/repository'
 import { calcularDiff, registrarLog } from '../../lib/audit'
@@ -62,6 +62,7 @@ export function UsuariosPage() {
     senha: string
   } | null>(null)
   const [copiada, setCopiada] = useState(false)
+  const [paraExcluir, setParaExcluir] = useState<Usuario | null>(null)
 
   const { ord, ordenar } = useOrdenacao('nome')
 
@@ -282,6 +283,40 @@ export function UsuariosPage() {
     setSenhaProvisoria({ email: u.email, senha: r.senhaProvisoria ?? '' })
   }
 
+  async function confirmarExclusao() {
+    if (!paraExcluir || enviando) return
+    const alvoExcluir = paraExcluir
+
+    // No modo Supabase a conta (auth) só morre pela API do servidor, e a
+    // autoexclusão é recusada lá (o botão nem aparece na própria linha).
+    if (modoSupabase) {
+      setEnviando(true)
+      const r = await apagarConta(alvoExcluir.email)
+      setEnviando(false)
+      if (!r.ok) {
+        notificar('erro', r.erro ?? 'Não foi possível excluir o usuário')
+        // O modal fica aberto de propósito: um erro como "a conta foi
+        // apagada mas o cadastro não" pede para o administrador repetir.
+        return
+      }
+    }
+
+    gravarColecao(
+      'USUARIOS',
+      lerColecao<Usuario>('USUARIOS').filter((u) => u.email !== alvoExcluir.email),
+    )
+    registrarLog({
+      usuario: usuario?.email ?? 'desconhecido',
+      acao: 'DELETE',
+      tabela: 'USUARIOS',
+      registroId: alvoExcluir.email,
+      mensagem: `Usuário ${alvoExcluir.nome} excluído`,
+    })
+    setUsuarios((atuais) => atuais.filter((u) => u.email !== alvoExcluir.email))
+    notificar('sucesso', `Usuário ${alvoExcluir.nome} excluído`)
+    setParaExcluir(null)
+  }
+
   return (
     <div className="space-y-5">
       <TituloSecao
@@ -381,6 +416,19 @@ export function UsuariosPage() {
                     >
                       <Pencil size={14} /> Editar
                     </Botao>
+                    {/* Some na própria linha: a autoexclusão é recusada também
+                        no servidor, mas nem o convite deve aparecer. */}
+                    {u.email !== usuario?.email && (
+                      <Botao
+                        tamanho="sm"
+                        variante="secundario"
+                        disabled={enviando}
+                        onClick={() => setParaExcluir(u)}
+                        title="Excluir o cadastro e a conta de acesso"
+                      >
+                        <Trash2 size={14} /> Excluir
+                      </Botao>
+                    )}
                   </div>
                 </Celula>
               </Linha>
@@ -585,6 +633,49 @@ export function UsuariosPage() {
           )}
         </div>
         )}
+      </Modal>
+
+      <Modal
+        aberto={paraExcluir !== null}
+        aoFechar={() => setParaExcluir(null)}
+        titulo="Excluir usuário"
+        rodape={
+          <>
+            <Botao variante="secundario" onClick={() => setParaExcluir(null)}>
+              Cancelar
+            </Botao>
+            <Botao
+              variante="perigo"
+              onClick={confirmarExclusao}
+              disabled={enviando}
+            >
+              {enviando ? 'Aguarde…' : 'Excluir'}
+            </Botao>
+          </>
+        }
+      >
+        <p className="text-sm text-content">
+          Confirma a exclusão de <strong>{paraExcluir?.nome}</strong>
+          {paraExcluir?.email ? <> — {paraExcluir.email}</> : null}? A ação é
+          irreversível.
+        </p>
+        <p className="mt-3 text-sm text-content">
+          {modoSupabase ? (
+            <>
+              A <strong>conta de acesso</strong> é apagada no Supabase e o
+              cadastro sai da lista de usuários — esta pessoa deixa de conseguir
+              entrar no sistema. Para só desativar, use o status{' '}
+              <strong>Inativo</strong> no cadastro.
+            </>
+          ) : (
+            <>
+              O cadastro sai da lista de usuários. Sem Supabase não existe conta
+              de acesso para apagar.
+            </>
+          )}{' '}
+          Ativos, manutenções e solicitações em que ela aparece ficam com o nome
+          no histórico, e a exclusão fica registrada na auditoria.
+        </p>
       </Modal>
     </div>
   )

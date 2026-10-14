@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Handshake, Plus, Search, XCircle } from 'lucide-react'
+import { CheckCircle2, FileSignature, Handshake, Plus, Search, XCircle } from 'lucide-react'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
 import { TituloSecao } from '../../components/ui/Card'
@@ -18,6 +18,7 @@ import { emprestimoAtrasado, useEmprestimosStore } from '../../store/emprestimos
 import { useUiStore } from '../../store/ui'
 import type { Emprestimo } from '../../types'
 import { EmprestimoFormModal } from './EmprestimoFormModal'
+import { TermoEmprestimoModal } from './TermoEmprestimoModal'
 
 const FILTROS = ['Em aberto', 'Atrasado', 'Devolvido', 'Cancelado'] as const
 
@@ -33,6 +34,7 @@ export function EmprestimosPage() {
   const [modalNovo, setModalNovo] = useState(false)
   const [paraDevolver, setParaDevolver] = useState<Emprestimo | null>(null)
   const [paraCancelar, setParaCancelar] = useState<Emprestimo | null>(null)
+  const [paraTermo, setParaTermo] = useState<Emprestimo | null>(null)
   const [observacaoDevolucao, setObservacaoDevolucao] = useState('')
   const { ord, ordenar } = useOrdenacao('previsaoDevolucao', 'desc')
 
@@ -222,31 +224,36 @@ export function EmprestimosPage() {
                     </div>
                   </Celula>
                   <Celula>
-                    {editar && (
-                      <div className="flex items-center gap-1">
-                        {e.status === 'Em aberto' && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setObservacaoDevolucao('')
-                                setParaDevolver(e)
-                              }}
-                              className="rounded-lg p-1.5 text-content-muted hover:bg-success/15 hover:text-success"
-                              title="Registrar devolução"
-                            >
-                              <CheckCircle2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => setParaCancelar(e)}
-                              className="rounded-lg p-1.5 text-content-muted hover:bg-danger/15 hover:text-danger"
-                              title="Cancelar empréstimo"
-                            >
-                              <XCircle size={16} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setParaTermo(e)}
+                        className="rounded-lg p-1.5 text-content-muted hover:bg-primary/15 hover:text-primary"
+                        title="Ver / imprimir termo de responsabilidade"
+                      >
+                        <FileSignature size={16} />
+                      </button>
+                      {editar && e.status === 'Em aberto' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setObservacaoDevolucao('')
+                              setParaDevolver(e)
+                            }}
+                            className="rounded-lg p-1.5 text-content-muted hover:bg-success/15 hover:text-success"
+                            title="Registrar devolução"
+                          >
+                            <CheckCircle2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => setParaCancelar(e)}
+                            className="rounded-lg p-1.5 text-content-muted hover:bg-danger/15 hover:text-danger"
+                            title="Cancelar empréstimo"
+                          >
+                            <XCircle size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </Celula>
                 </Linha>
               )
@@ -267,6 +274,13 @@ export function EmprestimosPage() {
       )}
 
       <EmprestimoFormModal aberto={modalNovo} aoFechar={() => setModalNovo(false)} />
+
+      <TermoEmprestimoModal
+        aberto={!!paraTermo}
+        aoFechar={() => setParaTermo(null)}
+        emprestimo={paraTermo}
+        ativo={paraTermo ? porCodigo(paraTermo.codigoAtivo) : undefined}
+      />
 
       <Modal
         aberto={!!paraDevolver}

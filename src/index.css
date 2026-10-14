@@ -510,3 +510,46 @@
     visibility: visible !important;
   }
 }
+
+/* Impressão do termo de responsabilidade — mesmo desenho das etiquetas. */
+@media print {
+  body.imprimindo-termo .termo-overlay,
+  body.imprimindo-termo .termo-topo,
+  body.imprimindo-termo .termo-base {
+    display: none !important;
+  }
+
+  body.imprimindo-termo .termo-caixa {
+    position: static !important;
+    display: block !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+  }
+
+  body.imprimindo-termo .termo-corpo {
+    overflow: visible !important;
+    max-height: none !important;
+    padding: 0 !important;
+  }
+
+  body.imprimindo-termo .folha-termo {
+    position: static !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+
+  body.imprimindo-termo * {
+    visibility: hidden !important;
+  }
+
+  body.imprimindo-termo .folha-termo,
+  body.imprimindo-termo .folha-termo * {
+    visibility: visible !important;
+  }
+}

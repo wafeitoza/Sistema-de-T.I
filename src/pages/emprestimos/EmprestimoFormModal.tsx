@@ -1,13 +1,16 @@
 import { useState } from 'react'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, FileSignature } from 'lucide-react'
 import { Botao } from '../../components/ui/Botao'
 import { AreaTexto, Entrada, Selecao } from '../../components/ui/Campos'
 import { Modal } from '../../components/ui/Modal'
 import { hojeBR, somarDiasBR } from '../../lib/format'
+import { conteudoTermoEmprestimo, dadosTermoDeEmprestimo } from '../../lib/termos'
 import { useAtivosStore } from '../../store/ativos'
 import { useEmprestimosStore, type DadosEmprestimo } from '../../store/emprestimos'
+import { useTermosStore } from '../../store/termos'
 import { useUiStore } from '../../store/ui'
 import type { Ativo, Emprestimo } from '../../types'
+import { TermoEmprestimoModal } from './TermoEmprestimoModal'
 
 interface Formulario {
   codigoAtivo: string
@@ -41,10 +44,13 @@ export function EmprestimoFormModal({
   const emprestar = useEmprestimosStore((s) => s.emprestar)
   const emprestimos = useEmprestimosStore((s) => s.emprestimos)
   const { ativos } = useAtivosStore()
+  const criarTermo = useTermosStore((s) => s.criar)
   const notificar = useUiStore((s) => s.notificar)
 
   const [form, setForm] = useState<Formulario>(formularioVazio())
   const [erros, setErros] = useState<Record<string, string>>({})
+  const [gerarTermo, setGerarTermo] = useState(true)
+  const [paraTermo, setParaTermo] = useState<Emprestimo | null>(null)
 
   const [abertoAnterior, setAbertoAnterior] = useState(aberto)
   if (aberto !== abertoAnterior) {
@@ -52,6 +58,7 @@ export function EmprestimoFormModal({
     if (aberto) {
       setForm(formularioVazio())
       setErros({})
+      setGerarTermo(true)
     }
   }
 
@@ -62,102 +69,155 @@ export function EmprestimoFormModal({
     (a) => a.status !== 'Descartado' && !emprestados.has(a.codigo),
   )
 
-  function salvar() {
+  async function salvar() {
     const dados: DadosEmprestimo = form
     const resultado = emprestar(dados)
     if (!resultado.ok) {
       setErros({ geral: resultado.erro ?? 'Não foi possível registrar o empréstimo.' })
       return
     }
-    notificar(
-      'sucesso',
-      `Empréstimo de ${form.codigoAtivo} registrado para ${form.funcionario.trim()}.`,
+
+    const funcionario = form.funcionario.trim()
+    const codigoAtivo = form.codigoAtivo
+    notificar('sucesso', `Empréstimo de ${codigoAtivo} registrado para ${funcionario}.`)
+
+    if (!gerarTermo) {
+      aoFechar()
+      return
+    }
+
+    // o termo sai do MESMO texto que será impresso, montado a partir do
+    // formulário — e remontado idêntico pela página de empréstimos depois
+    const ativo = ativos.find((a) => a.codigo === codigoAtivo)
+    const conteudo = conteudoTermoEmprestimo(
+      dadosTermoDeEmprestimo({ ...form, funcionario, matricula: form.matricula.trim() }, ativo),
     )
+    try {
+      const termo = await criarTermo({ ativoCodigo: codigoAtivo, responsavel: funcionario, conteudo })
+      notificar('sucesso', `Termo ${termo.id} gerado com hash SHA-256 registrado.`)
+    } catch {
+      notificar('erro', 'Empréstimo registrado, mas o termo não pôde ser gerado.')
+    }
+
+    const criado = useEmprestimosStore
+      .getState()
+      .emprestimos.find(
+        (e) => e.codigoAtivo === codigoAtivo && e.funcionario === funcionario && e.status === 'Em aberto',
+      )
+    setParaTermo(criado ?? null)
     aoFechar()
   }
 
   return (
-    <Modal
-      aberto={aberto}
-      aoFechar={aoFechar}
-      titulo="Novo empréstimo"
-      rodape={
-        <>
-          <Botao variante="secundario" onClick={aoFechar}>
-            Cancelar
-          </Botao>
-          <Botao onClick={salvar}>Registrar empréstimo</Botao>
-        </>
-      }
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Selecao
-          label="Equipamento *"
-          value={form.codigoAtivo}
-          erro={erros.codigoAtivo}
-          onChange={(e) => setForm({ ...form, codigoAtivo: e.target.value })}
-          opcoes={disponiveis.map((a: Ativo) => ({
-            valor: a.codigo,
-            rotulo: `${a.codigo} — ${a.descricao}`,
-          }))}
-          placeholder={disponiveis.length ? 'Selecione…' : 'Nenhum equipamento disponível'}
-          className="sm:col-span-2"
-          disabled={!disponiveis.length}
-        />
-        <Entrada
-          label="Nome do funcionário *"
-          value={form.funcionario}
-          erro={erros.funcionario}
-          onChange={(e) => setForm({ ...form, funcionario: e.target.value })}
-          placeholder="Nome completo"
-        />
-        <Entrada
-          label="Matrícula"
-          value={form.matricula}
-          onChange={(e) => setForm({ ...form, matricula: e.target.value })}
-          placeholder="000000"
-        />
-        <Entrada
-          label="Setor *"
-          value={form.setor}
-          erro={erros.setor}
-          onChange={(e) => setForm({ ...form, setor: e.target.value })}
-          placeholder="Financeiro, Vendas…"
-        />
-        <Entrada
-          label="Data do empréstimo *"
-          value={form.dataEmprestimo}
-          erro={erros.dataEmprestimo}
-          onChange={(e) => setForm({ ...form, dataEmprestimo: e.target.value })}
-          placeholder="DD/MM/AAAA"
-          inputMode="numeric"
-        />
-        <Entrada
-          label="Previsão de devolução *"
-          value={form.previsaoDevolucao}
-          erro={erros.previsaoDevolucao}
-          onChange={(e) => setForm({ ...form, previsaoDevolucao: e.target.value })}
-          placeholder="DD/MM/AAAA"
-          inputMode="numeric"
-        />
-        <AreaTexto
-          label="Observação do empréstimo"
-          value={form.observacao}
-          onChange={(e) => setForm({ ...form, observacao: e.target.value })}
-          placeholder="Motivo do uso pessoal, acessórios entregues…"
-          className="sm:col-span-2"
-        />
-      </div>
+    <>
+      <Modal
+        aberto={aberto}
+        aoFechar={aoFechar}
+        titulo="Novo empréstimo"
+        rodape={
+          <>
+            <Botao variante="secundario" onClick={aoFechar}>
+              Cancelar
+            </Botao>
+            <Botao onClick={() => void salvar()}>Registrar empréstimo</Botao>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Selecao
+            label="Equipamento *"
+            value={form.codigoAtivo}
+            erro={erros.codigoAtivo}
+            onChange={(e) => setForm({ ...form, codigoAtivo: e.target.value })}
+            opcoes={disponiveis.map((a: Ativo) => ({
+              valor: a.codigo,
+              rotulo: `${a.codigo} — ${a.descricao}`,
+            }))}
+            placeholder={disponiveis.length ? 'Selecione…' : 'Nenhum equipamento disponível'}
+            className="sm:col-span-2"
+            disabled={!disponiveis.length}
+          />
+          <Entrada
+            label="Nome do funcionário *"
+            value={form.funcionario}
+            erro={erros.funcionario}
+            onChange={(e) => setForm({ ...form, funcionario: e.target.value })}
+            placeholder="Nome completo"
+          />
+          <Entrada
+            label="Matrícula"
+            value={form.matricula}
+            onChange={(e) => setForm({ ...form, matricula: e.target.value })}
+            placeholder="000000"
+          />
+          <Entrada
+            label="Setor *"
+            value={form.setor}
+            erro={erros.setor}
+            onChange={(e) => setForm({ ...form, setor: e.target.value })}
+            placeholder="Financeiro, Vendas…"
+          />
+          <Entrada
+            label="Data do empréstimo *"
+            value={form.dataEmprestimo}
+            erro={erros.dataEmprestimo}
+            onChange={(e) => setForm({ ...form, dataEmprestimo: e.target.value })}
+            placeholder="DD/MM/AAAA"
+            inputMode="numeric"
+          />
+          <Entrada
+            label="Previsão de devolução *"
+            value={form.previsaoDevolucao}
+            erro={erros.previsaoDevolucao}
+            onChange={(e) => setForm({ ...form, previsaoDevolucao: e.target.value })}
+            placeholder="DD/MM/AAAA"
+            inputMode="numeric"
+          />
+          <AreaTexto
+            label="Observação do empréstimo"
+            value={form.observacao}
+            onChange={(e) => setForm({ ...form, observacao: e.target.value })}
+            placeholder="Motivo do uso pessoal, acessórios entregues…"
+            className="sm:col-span-2"
+          />
+        </div>
 
-      {erros.geral && (
-        <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{erros.geral}</p>
-      )}
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg border border-line bg-surface-2 p-3">
+          <input
+            type="checkbox"
+            checked={gerarTermo}
+            onChange={(e) => setGerarTermo(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+          />
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-content">
+              <FileSignature size={14} className="text-primary" />
+              Gerar termo de responsabilidade
+            </span>
+            <span className="mt-0.5 block text-xs text-content-muted">
+              Registra o termo com o nome do funcionário e o tipo de equipamento, com hash SHA-256.
+              A janela de impressão abre logo depois.
+            </span>
+          </span>
+        </label>
 
-      <p className="mt-3 flex items-start gap-2 rounded-lg bg-primary-light px-3 py-2 text-xs text-primary dark:bg-primary/10">
-        <CalendarClock size={14} className="mt-0.5 shrink-0" />
-        O equipamento continua com status <strong>Ativo</strong> no cadastro. Prazo padrão de
-        devolução: 7 dias.
-      </p>
-    </Modal>
+        {erros.geral && (
+          <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{erros.geral}</p>
+        )}
+
+        <p className="mt-3 flex items-start gap-2 rounded-lg bg-primary-light px-3 py-2 text-xs text-primary dark:bg-primary/10">
+          <CalendarClock size={14} className="mt-0.5 shrink-0" />
+          O equipamento continua com status <strong>Ativo</strong> no cadastro. Prazo padrão de
+          devolução: 7 dias.
+        </p>
+      </Modal>
+
+      <TermoEmprestimoModal
+        aberto={!!paraTermo}
+        aoFechar={() => setParaTermo(null)}
+        emprestimo={paraTermo}
+        ativo={paraTermo ? ativos.find((a) => a.codigo === paraTermo.codigoAtivo) : undefined}
+      />
+    </>
   )
 }

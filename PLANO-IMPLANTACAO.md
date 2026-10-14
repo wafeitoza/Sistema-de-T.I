@@ -191,7 +191,7 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
 - **Não há FK para `usuarios`** e `responsavel` é texto livre → apagar alguém não quebra histórico algum; a exclusão fica registrada na auditoria (`acao: DELETE`).
 - **Validação**: lint 0 warnings · `tsc -b` · **168/168 testes** (4 novos em `admin.test.ts`) · build · E2E local 13/13 · checagem do fluxo em modo local 12/12 · **E2E de produção 16/16** com login real, criação da vítima pela UI (prova o insert em `usuarios` sob RLS) e exclusão pela UI. Conferido por service_role que **conta Auth e cadastro sumiram** e que a auditoria registrou CREATE + DELETE. Conta temporária apagada no fim.
 
-### Funcionalidade nova (13/10/2026) — **Sentry (Fase E, item 15) e ErrorBoundary**
+### Funcionalidade nova (14/10/2026) — **Sentry (Fase E, item 15) e ErrorBoundary**
 Pedido: *"sentry free para erros"*. Entregue como **código pronto, DSN depois** — o repositório não fica esperando a conta ser criada.
 
 - **`src/data/erros.ts`**: `iniciarErros()` / `reportarErro()` / `errosAtivos()`. Só importa o SDK se `VITE_SENTRY_DSN` existir; sem ela o comportamento é **exatamente** o antigo (console + aba Auditoria).
@@ -201,6 +201,29 @@ Pedido: *"sentry free para erros"*. Entregue como **código pronto, DSN depois**
 - ⚠️ **Ativação = colar a DSN + Redeploy** — detalhe fácil de cair: o Vite embute a variável em tempo de build e, enquanto ela não existe, o `import('@sentry/react')` é removido por tree-shaking. Salvar a env var no Vercel **sozinha não faz nada** até o próximo deploy.
 - **Teste do domínio (item 18) — sem mudança de código**: não há URL hardcoded em `src/`, `api/` ou `scripts/`; `montarLinkAprovacao` usa `window.location.origin` e `/api/usuarios` é same-origin.
 - **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** (+12) · build · E2E local 13/13.
+
+### Funcionalidade nova (14/10/2026) — **ícone do sistema: avatar WAF**
+Pedido: *"use essa imagem para o icone da aplicação"*. Fonte: `~/Downloads/WAFicon_converted.png` (1024×1536, RGB opaco, **sem alfa**). Antes o ícone era um quadrado azul com glyph `Package` — que já divergia do app, que usa `Boxes`.
+
+- **Composição**: recorte quadrado `800x800+120+175`, enquadrando boné + rosto. Testei antes de decidir: um corte de 730 apertava a aba do boné à esquerda e a orelha à direita; o 800 cabe inteiro com folga.
+- **Os glifos decorativos das bordas não são removíveis** sem cortar o boné — o brilho ciano do personagem e os glifos têm a mesma cor, então não separam por cor. Ficam: somem a 16 px e leem como textura de estilo a 128 px.
+- **Tile branco com cantos arredondados a 22%** (mesmo espírito do anterior, `rx=14` sobre 64), **com transparência nos cantos** — o fundo escuro da aba atravessa e o ícone lê como avatar deliberado, não como quadrado branco. (Primeira tentativa saiu RGB opaco; o `-compose DstIn` com preto-sobre-preto não gera alfa — corrigido com máscara `xc:none` + `-compose CopyOpacity`.)
+- **Arquivos gerados com o ImageMagick já instalado** — nenhuma dependência nova no projeto:
+  `favicon.ico` (16/32/48 embutidos) · `favicon-32.png` · `apple-touch-icon.png` (180, opaco — iOS exige) · `icon-192.png` · `icon-512.png` · `icon-maskable-512.png` (obra a 78% sobre branco, dentro da zona segura do Android).
+- **Saiu `public/favicon.svg`**: raster não vira SVG vetorial de verdade, e embutir em base64 seria peso por nada. O `<link type="image/svg+xml">` saiu junto do `index.html`, senão viraria 404.
+- **`icon-192`/`icon-512` deixaram de ser órfãos**: não existia manifest e nada os referenciava. Agora há `public/manifest.webmanifest` (`start_url: "/"`, `display: standalone`, `theme_color: #007aff`) — e o app ficou **instalável**.
+- **Sem service worker, de propósito** — é o que evita a armadilha clássica do PWA servindo bundle velho.
+- **O logo interno (Sidebar e login) continua com o glyph `Boxes`** — decisão do usuário, trocar só a aba do navegador. Ou seja, aba e app mostram coisas diferentes, deliberadamente.
+- **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** · build OK · todos os 7 assets respondem. **Armadilha de verificação**: `/favicon.svg` ainda responde `200`, mas é o **fallback SPA** servindo `index.html` (`text/html`) — confira o `Content-Type` ou os magic bytes, senão o 204/200 mente.
+- ⚠️ **Cache**: favicon é cacheado com teimosia. Ctrl+Shift+R, e abas antigas podem mostrar o ícone velho por um tempo.
+
+Para regerar a partir da fonte (ImageMagick):
+```bash
+magick fonte.png -crop 800x800+120+175 +repage base800.png
+magick -size 512x512 xc:none -fill white -draw "roundrectangle 0,0,511,511,112,112" mk.png
+magick base800.png -resize 512x512 mk.png -compose CopyOpacity -composite icon-512.png
+magick icon-512.png -define icon:auto-resize=16,32,48 favicon.ico
+```
 
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
@@ -305,7 +328,7 @@ Pedido: *"sentry free para erros"*. Entregue como **código pronto, DSN depois**
 
 ### Fase E — Operação
 14. ✅ **Backups**: no free tier, dump agendado via GitHub Actions (semanal) — **obrigatório** (free não tem backup automático). **Consertado e validado em 13/10/2026**: dump pela Management API (PAT, sem senha do banco) + GPG AES-256 + round-trip obrigatório; **restore testado num Postgres 17 descartável** (16 tabelas, 5 contas auth com bcrypt). Artefato com retenção de 90 dias. Ver "Funcionalidade nova (13/10/2026)".
-15. ✅ **Sentry (free) para erros** — **código pronto e validado em 13/10/2026**; ⚠️ **resta ~1 minuto seu**: criar a conta e colar o DSN. Camada em `src/data/erros.ts` (`iniciarErros` / `reportarErro` / `errosAtivos`) mais um `ErrorBoundary` em `src/components/ui/ErrorBoundary.tsx` — antes, um erro de render derrubava a árvore inteira e o usuário ficava numa **tela branca sem saída**; agora aparece "Recarregar" e o erro é reportado com a pilha de componentes.
+15. ✅ **Sentry (free) para erros** — **código pronto e validado em 14/10/2026**; ⚠️ **resta ~1 minuto seu**: criar a conta e colar o DSN. Camada em `src/data/erros.ts` (`iniciarErros` / `reportarErro` / `errosAtivos`) mais um `ErrorBoundary` em `src/components/ui/ErrorBoundary.tsx` — antes, um erro de render derrubava a árvore inteira e o usuário ficava numa **tela branca sem saída**; agora aparece "Recarregar" e o erro é reportado com a pilha de componentes.
     - **Só liga com `VITE_SENTRY_DSN`**; sem ela o comportamento é exatamente o antigo (console + aba Auditoria). Medido no build: **323 KB gz sem DSN** vs. 469 KB gz com (+145 KB do SDK, em chunk próprio).
     - ⚠️ **Ativação = colar a DSN + Redeploy.** O Vite embute a variável em tempo de build e, enquanto ela não existe, o `import('@sentry/react')` é removido por tree-shaking — ou seja, salvar a env var no Vercel **sozinha não faz nada** até o próximo deploy (mesma regra já documentada para as demais env vars).
     - **LGPD garantida por teste**: o `beforeSend` apaga `request` (URL, headers, cookies) e `user` (nome, e-mail) de **todo** evento, e não existe `setUser` em lugar nenhum do código — o sistema guarda nome, e-mail, setor e telefone de servidores.
@@ -367,7 +390,7 @@ Pedido: *"sentry free para erros"*. Entregue como **código pronto, DSN depois**
    2. ✅ **Deploy do frontend** (13/10/2026) — bundle no ar com as entregas; CI verde.
    3. ✅ **E2E de produção completo** (13/10/2026) — 18/18, 0 erros de console. Conta temporária via `node scripts/e2e-usuario.mjs criar|apagar` (service_role do `.env.local`).
    4. ✅ **Backup do banco consertado e restore testado** (13/10/2026) — ver "Funcionalidade nova (13/10/2026)".
-   → ⚠️ **Resta da Fase E**: Sentry (item 15) — só falta a **conta + DSN** seus; o código está pronto e validado (13/10/2026). É a **única pendência da Fase E**.
+   → ⚠️ **Resta da Fase E**: Sentry (item 15) — só falta a **conta + DSN** seus; o código está pronto e validado (14/10/2026). É a **única pendência da Fase E**.
    → ⚠️ **Resta da Fase F**: só o item 17 (usuários reais + treinamento + RPO) — sua ação. Item 18 (domínio) **decidido**: manter `it-stock-react.vercel.app` por ora, zero código. **O banco está zerado e pronto**: 0 ativos, 0 estoque, 26 sequências em 0 (o primeiro ativo real sai `NOTE-001`).
 5. **Se mexer em migration**: aplicar no banco de produção ANTES do push — a Vercel deploya automático a cada push na `main` e um frontend novo com migration velha faria o app pedir sequência que o servidor não tem. Requer `supabase login` com PAT (**o atual `sbp_fc78582b…` é o secret do backup — não revogar**; se um dia revogar, trocar o secret também).
 6. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`

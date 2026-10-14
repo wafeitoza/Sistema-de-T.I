@@ -225,6 +225,18 @@ magick base800.png -resize 512x512 mk.png -compose CopyOpacity -composite icon-5
 magick icon-512.png -define icon:auto-resize=16,32,48 favicon.ico
 ```
 
+### Funcionalidade nova (14/10/2026) — **logo da tela de login é o avatar**
+Pedido: *"troque o icone da tela de login por esse que te mandei"*. Antes era o glyph `Boxes` dentro de um tile de gradiente azul. Agora é o **mesmo avatar do favicon** (recorte 800×800), tile branco com `rounded-2xl` — para aba e login falarem a mesma língua.
+
+- **`src/assets/logo.png` (256×256) com import ES, não `public/`**: o Vite agrega hash no nome (`logo-CLAy1ECY.png`), então trocar a imagem no futuro **derruba o cache sozinho**. Em `public/` ela cachearia com teimosia — exatamente o problema do favicon que eu acabei de avisar.
+- **Quadrado e opaco de propósito**: o arredondamento é do CSS (`rounded-2xl` + `overflow-hidden`), então a imagem não precisa de alfa.
+- **`src/vite-env.d.ts` ganhou `/// <reference types="vite/client" />`** — sem ele o `tsc -b` **reprovava** o import de `.png`, por não haver declaração de módulo para assets. Esse reference também cobre os tipos de `VITE_*`.
+- **`alt=""` no `<img>`**: o `<h1>` ao lado já diz "IT Stock & Inventory"; anunciar o logo duplicaria a leitura para quem usa leitor de tela.
+- **`Boxes` saiu do import** do `lucide-react` no `LoginPage` (só existia ali) — o oxlint `--deny-warnings` reprovaria por não usado.
+- **Ficam 3 marcas agora**: favicon e login com o avatar, **Sidebar continuando com `Boxes`** (decisão do usuário de trocar só o login). Unificar o Sidebar seria a mesma troca em cinco linhas.
+- **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** · build OK · asset no `dist/assets/` com hash e referenciado no `App-*.js` · **E2E local 13/13, 0 erros de console** · screenshot da tela de login conferido visualmente.
+- ⚠️ **Pegadinha operacional**: rodar `pkill -f "vite previe[w]"` **no mesmo comando** que lança o preview mata a própria shell — o padrão casa com o `npx vite preview` que está no texto do comando invocador. Separe em comandos (aconteceu uma vez; o `.env.local` sobreviveu só porque o `pkill` veio antes do `rm`).
+
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
 - ✅ **Hardening do `anon` (08/10/2026)**: teste externo com a chave pública achou 4 helpers (`perfil_atual`, `e_admin`, `pode_editar`, `papel_requisicao`) respondendo 200 para `anon` — causa raiz: o `pg_default_acl` do `supabase_admin` granta `execute` direto no `pg_proc.proacl` de toda função nova. 2 migrations novas (`20261008010000_anon_sem_helpers.sql` + `_supabase.sql`) revogaram `public` **e** `anon` e regraram o `execute` só para `authenticated`/`service_role`. Agora o teste externo dá **8/8**: 6 helpers → 401, só `solicitacao_por_token` → 200.

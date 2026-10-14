@@ -78,6 +78,7 @@ src/
 ├── store/        Zustand: auth, ativos, estoque, solicitacoes, manutencao,
 │                 inventario, termos, setores, fornecedores, movimentacoes, ui
 ├── components/   layout (sidebar agrupada, header, sino, busca Ctrl+K) + kit de UI
+├── assets/       imagens importadas pelo bundle (com hash no nome — logo do login)
 └── pages/        login, dashboard, ativos, estoque, inventário, solicitações,
                   manutenção, relatórios, termos, setores, fornecedores,
                   movimentações, usuários, auditoria, configurações

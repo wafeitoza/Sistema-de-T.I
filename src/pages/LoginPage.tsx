@@ -6,12 +6,13 @@ import {
   type MouseEvent,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Boxes, ChevronRight, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
+import { ChevronRight, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
 import { modoSupabase } from '../data/client'
 import { lerColecao } from '../data/repository'
 import { Card3D } from '../components/ui/Card3D'
 import { useAuthStore } from '../store/auth'
 import type { Usuario } from '../types'
+import logo from '../assets/logo.png'
 
 const CORES_PERFIL: Record<string, string> = {
   Admin: 'bg-danger/15 text-danger',
@@ -113,8 +114,20 @@ export function LoginPage() {
 
       <div className="relative w-full max-w-md">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <div className="anim-fade-up anim-float flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary-dark to-info text-white shadow-xl shadow-primary/40">
-            <Boxes size={30} />
+          {/* O logo é o mesmo avatar do favicon (aba do navegador), para as
+              duas falarem a mesma língua. O arredondamento é do CSS
+              (`rounded-2xl` + `overflow-hidden`), então o PNG fica quadrado e
+              opaco. `alt=""` de propósito: o <h1> abaixo já diz "IT Stock &
+              Inventory", e anunciar o logo duplicaria a leitura. */}
+          <div className="anim-fade-up anim-float flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl shadow-xl shadow-primary/40">
+            <img
+              src={logo}
+              alt=""
+              className="h-full w-full object-cover"
+              width={64}
+              height={64}
+              decoding="async"
+            />
           </div>
           <div className="anim-fade-up" style={{ animationDelay: '80ms' }}>
             <h1 className="text-2xl font-extrabold tracking-tight text-content">

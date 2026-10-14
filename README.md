@@ -119,6 +119,7 @@ sai em modo `localStorage`:
 |---|---|
 | `VITE_SUPABASE_URL` | frontend |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | frontend (chave pública) |
+| `VITE_SENTRY_DSN` | frontend — **opcional**; sem ela não há Sentry |
 | `SUPABASE_URL` | Function `api/usuarios.mjs` |
 | `SUPABASE_PUBLISHABLE_KEY` | Function |
 | `SUPABASE_SERVICE_ROLE_KEY` | Function — **nunca** no frontend |

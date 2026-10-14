@@ -38,7 +38,7 @@
 ### Qualidade (validado na última entrega — 13/10/2026)
 - `npm run lint` → **0 warnings, 0 erros**
 - `npx tsc -b` → OK (`tsc --noEmit` na raiz não checa `tsconfig.app.json` — **use `tsc -b`**)
-- `npm test` → **168/168** (Vitest + happy-dom; +3 de regressão do bloco de sequência e +4 de `apagarConta`)
+- `npm test` → **180/180** (Vitest + happy-dom; +12 da camada de erros: 8 em `erros.test.ts` e 4 no `ErrorBoundary.test.tsx` — o include do vitest passou a aceitar `.tsx`, habilitando teste de componente)
 - `npm run build` → OK (`tsc -b` incluído)
 - **RLS em Postgres 17 real (Docker)**: `supabase/tests/rls_fase_d.sql` → **81 checagens, 0 falhas** (rodada de novo em 13/10 sobre as 14 migrations)
 - **RLS do exterior (13/10/2026, só com a chave pública, contra produção)**: 8 checks, 0 falhas — `anon` → 401 em `ativos`/`auditoria`/`usuarios`/`sequencias` e INSERT negado; `proxima_sequencia`/`reservar_sequencia` → `42501 permission denied`; `solicitacao_por_token` → 200 (link público intacto).
@@ -191,6 +191,17 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
 - **Não há FK para `usuarios`** e `responsavel` é texto livre → apagar alguém não quebra histórico algum; a exclusão fica registrada na auditoria (`acao: DELETE`).
 - **Validação**: lint 0 warnings · `tsc -b` · **168/168 testes** (4 novos em `admin.test.ts`) · build · E2E local 13/13 · checagem do fluxo em modo local 12/12 · **E2E de produção 16/16** com login real, criação da vítima pela UI (prova o insert em `usuarios` sob RLS) e exclusão pela UI. Conferido por service_role que **conta Auth e cadastro sumiram** e que a auditoria registrou CREATE + DELETE. Conta temporária apagada no fim.
 
+### Funcionalidade nova (13/10/2026) — **Sentry (Fase E, item 15) e ErrorBoundary**
+Pedido: *"sentry free para erros"*. Entregue como **código pronto, DSN depois** — o repositório não fica esperando a conta ser criada.
+
+- **`src/data/erros.ts`**: `iniciarErros()` / `reportarErro()` / `errosAtivos()`. Só importa o SDK se `VITE_SENTRY_DSN` existir; sem ela o comportamento é **exatamente** o antigo (console + aba Auditoria).
+- **`src/components/ui/ErrorBoundary.tsx`** — melhoria de resiliência que veio junto e é útil **mesmo sem Sentry**: antes não existia boundary nenhum no `src/`, então um erro de render derrubava a árvore inteira e o usuário ficava com **tela branca e sem saída**, sem nem o console apontar a origem. Agora aparece "A tela encontrou um erro" + **Recarregar**, com o erro indo para o console **e** para o Sentry (quando ativo) junto da pilha de componentes e da página. Fica em volta do `<App/>` no `main.tsx`, fora do `StrictMode`.
+- **LGPD garantida por teste, não por intenção**: o sistema guarda nome, e-mail, setor e telefone de servidores, então o `beforeSend` apaga **todo evento** de `request` (URL, headers, cookies) e `user` (nome, e-mail), e não existe `setUser` em lugar nenhum do código. Há teste cobrindo exatamente isso.
+- **Custo medido no build**: **323 KB gz sem DSN** (SDK ausente do bundle) vs. **469 KB gz com** (+145 KB, em chunk próprio `esm-*.js`). Só exceções (`tracesSampleRate: 0`) e falha do SDK não derruba o boot.
+- ⚠️ **Ativação = colar a DSN + Redeploy** — detalhe fácil de cair: o Vite embute a variável em tempo de build e, enquanto ela não existe, o `import('@sentry/react')` é removido por tree-shaking. Salvar a env var no Vercel **sozinha não faz nada** até o próximo deploy.
+- **Teste do domínio (item 18) — sem mudança de código**: não há URL hardcoded em `src/`, `api/` ou `scripts/`; `montarLinkAprovacao` usa `window.location.origin` e `/api/usuarios` é same-origin.
+- **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** (+12) · build · E2E local 13/13.
+
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
 - ✅ **Hardening do `anon` (08/10/2026)**: teste externo com a chave pública achou 4 helpers (`perfil_atual`, `e_admin`, `pode_editar`, `papel_requisicao`) respondendo 200 para `anon` — causa raiz: o `pg_default_acl` do `supabase_admin` granta `execute` direto no `pg_proc.proacl` de toda função nova. 2 migrations novas (`20261008010000_anon_sem_helpers.sql` + `_supabase.sql`) revogaram `public` **e** `anon` e regraram o `execute` só para `authenticated`/`service_role`. Agora o teste externo dá **8/8**: 6 helpers → 401, só `solicitacao_por_token` → 200.
@@ -294,12 +305,16 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
 
 ### Fase E — Operação
 14. ✅ **Backups**: no free tier, dump agendado via GitHub Actions (semanal) — **obrigatório** (free não tem backup automático). **Consertado e validado em 13/10/2026**: dump pela Management API (PAT, sem senha do banco) + GPG AES-256 + round-trip obrigatório; **restore testado num Postgres 17 descartável** (16 tabelas, 5 contas auth com bcrypt). Artefato com retenção de 90 dias. Ver "Funcionalidade nova (13/10/2026)".
-15. **Sentry (free) para erros** — ⚠️ **único item da Fase E que ainda precisa de você**: criar a conta e colar o DSN. Enquanto isso, os erros vão para o console e para a aba Auditoria.
+15. ✅ **Sentry (free) para erros** — **código pronto e validado em 13/10/2026**; ⚠️ **resta ~1 minuto seu**: criar a conta e colar o DSN. Camada em `src/data/erros.ts` (`iniciarErros` / `reportarErro` / `errosAtivos`) mais um `ErrorBoundary` em `src/components/ui/ErrorBoundary.tsx` — antes, um erro de render derrubava a árvore inteira e o usuário ficava numa **tela branca sem saída**; agora aparece "Recarregar" e o erro é reportado com a pilha de componentes.
+    - **Só liga com `VITE_SENTRY_DSN`**; sem ela o comportamento é exatamente o antigo (console + aba Auditoria). Medido no build: **323 KB gz sem DSN** vs. 469 KB gz com (+145 KB do SDK, em chunk próprio).
+    - ⚠️ **Ativação = colar a DSN + Redeploy.** O Vite embute a variável em tempo de build e, enquanto ela não existe, o `import('@sentry/react')` é removido por tree-shaking — ou seja, salvar a env var no Vercel **sozinha não faz nada** até o próximo deploy (mesma regra já documentada para as demais env vars).
+    - **LGPD garantida por teste**: o `beforeSend` apaga `request` (URL, headers, cookies) e `user` (nome, e-mail) de **todo** evento, e não existe `setUser` em lugar nenhum do código — o sistema guarda nome, e-mail, setor e telefone de servidores.
+    - Só exceções (`tracesSampleRate: 0`), e falha do SDK não derruba o boot.
 16. ✅ **CI no GitHub Actions** (08/10/2026) — `.github/workflows/ci.yml`: em todo push na `main` e em todo PR roda `npm ci` → `oxlint --deny-warnings` → `tsc -b` → `vitest` → `build`, com cache de npm, Node 26 (mesma versão de dev), uma rodada por ref (a anterior é cancelada) e **sem segredos** (o build não exige as env vars do Supabase — sem elas o app cai no modo local). Primeira rodada: **verde em 35s** ([run 37826739284](https://github.com/wafeitoza/Sistema-de-T.I/actions/runs/37826739284)) + badge no README. **Gotcha:** o token do `gh` precisa do escopo **`workflow`** para push de arquivo em `.github/workflows/` (`gh auth refresh -s workflow`); sem ele o GitHub rejeita o push mesmo com `repo`.
 
 ### Fase F — Go-live
 17. **Cadastrar usuários reais, treinar, definir RPO** — ⚠️ **precisa de você** (as pessoas e o treinamento não são automatizáveis). O banco está **zerado e pronto**: 0 ativos, 0 estoque, 26 sequências em 0 (o primeiro ativo real sai `NOTE-001`), 5 contas Auth com senha provisória.
-18. **Domínio custom opcional** (grátis via Vercel) ou manter `it-stock-react.vercel.app` — ⚠️ **precisa de você** decidir.
+18. ✅ **Domínio custom opcional** — **decidido em 13/10/2026: manter `it-stock-react.vercel.app` por ora.** Nome pretendido depois: **`itstock` + extensão** (`itstock.com.br`, **R$ 40/ano fixos no Registro.br**) — a **hospedagem no Vercel continua grátis** (até 50 domínios por projeto, TLS automático), mas o **nome nunca é de graça**. **Nenhuma mudança de código**: não há URL hardcoded em `src/`, `api/` ou `scripts/` (`montarLinkAprovacao` usa `window.location.origin` e `/api/usuarios` é same-origin), então apontar o domínio depois é só configuração na Vercel + DNS.
 19. ✅ **Checklist**: ~~restore de backup testado~~ · ~~0 erros E2E~~ · ~~token Vercel revogado~~ · ~~demo separada/desativada~~ — **os 4 fechados em 13/10/2026**.
     - **Restore testado**: dump de 13/10 restaurado num Postgres 17 descartável (16 tabelas + dados + 5 contas auth com bcrypt).
     - **0 erros E2E**: 18/18 em produção, 0 erros de console, 0 respostas 4xx/5xx.
@@ -352,8 +367,8 @@ Três entregas da tarde de 13/10/2026, todas motivadas pela continuação autom�
    2. ✅ **Deploy do frontend** (13/10/2026) — bundle no ar com as entregas; CI verde.
    3. ✅ **E2E de produção completo** (13/10/2026) — 18/18, 0 erros de console. Conta temporária via `node scripts/e2e-usuario.mjs criar|apagar` (service_role do `.env.local`).
    4. ✅ **Backup do banco consertado e restore testado** (13/10/2026) — ver "Funcionalidade nova (13/10/2026)".
-   → ⚠️ **Resta da Fase E**: Sentry (item 15) — precisa de conta + DSN seus.
-   → ⚠️ **Resta da Fase F**: itens 17 (usuários reais + treinamento + RPO) e 18 (domínio) — suas decisões. **O banco está zerado e pronto**: 0 ativos, 0 estoque, 26 sequências em 0 (o primeiro ativo real sai `NOTE-001`).
+   → ⚠️ **Resta da Fase E**: Sentry (item 15) — só falta a **conta + DSN** seus; o código está pronto e validado (13/10/2026). É a **única pendência da Fase E**.
+   → ⚠️ **Resta da Fase F**: só o item 17 (usuários reais + treinamento + RPO) — sua ação. Item 18 (domínio) **decidido**: manter `it-stock-react.vercel.app` por ora, zero código. **O banco está zerado e pronto**: 0 ativos, 0 estoque, 26 sequências em 0 (o primeiro ativo real sai `NOTE-001`).
 5. **Se mexer em migration**: aplicar no banco de produção ANTES do push — a Vercel deploya automático a cada push na `main` e um frontend novo com migration velha faria o app pedir sequência que o servidor não tem. Requer `supabase login` com PAT (**o atual `sbp_fc78582b…` é o secret do backup — não revogar**; se um dia revogar, trocar o secret também).
 6. Rodar validação sempre: `npm run lint && npx tsc -b && npm test && npm run build`
 7. E2E local sempre que mexer em login/dados: `npm run build` **sem `.env.local`** (para o modo local) + `npm run preview` (4173) + Chrome na 9225 + `node /tmp/opencode/e2e-local.mjs` (13 checks). Com env vars o mesmo build vira modo Supabase.

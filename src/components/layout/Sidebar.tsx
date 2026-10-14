@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Boxes, LogOut, Moon, Sun, X } from 'lucide-react'
+import { LogOut, Moon, Sun, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { podeAcessarRota } from '../../lib/permissions'
 import { ROTAS_NAVEGACAO, type SecaoNav } from '../../lib/rotas'
@@ -7,6 +7,7 @@ import { Avatar } from '../ui/Avatar'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import type { Perfil } from '../../types'
+import logo from '../../assets/logo.png'
 
 const SECOES_NAV: SecaoNav[] = ['Operação', 'Cadastros', 'Sistema']
 
@@ -25,8 +26,19 @@ export function Sidebar() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-5 py-5">
         <div className="group flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary to-info text-white shadow-lg shadow-primary/30 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
-            <Boxes size={18} />
+          {/* Mesmo avatar do favicon e da tela de login, para as três
+              superfícies falarem a mesma língua. O arredondamento é do CSS
+              (rounded-xl + overflow-hidden) e `alt=""` porque o nome
+              "IT Stock" está ao lado, em texto. */}
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl shadow-lg shadow-primary/30 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
+            <img
+              src={logo}
+              alt=""
+              className="h-full w-full object-cover"
+              width={36}
+              height={36}
+              decoding="async"
+            />
           </div>
           <div>
             <p className="text-sm font-extrabold tracking-tight text-content">IT Stock</p>

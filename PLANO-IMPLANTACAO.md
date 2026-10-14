@@ -252,6 +252,17 @@ Pedido: *"unifique tudo"*. Fecha a divergência que eu mesmo havia apontado — 
 - `alt=""` também aqui — o nome "IT Stock" está ao lado, em texto.
 - **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** · build OK · **E2E local 13/13, 0 erros de console** · screenshot logado conferido — avatar no Sidebar **e** glyph `Boxes` ainda intacto no menu Ativos.
 
+### Funcionalidade nova (14/10/2026) — **termo de responsabilidade no empréstimo**
+Pedido: *"em empréstimos de equipamentos crie um termo de responsabilidade com o nome do funcionário que vai usar o equipamento e o tipo de equipamento"*.
+
+- O formulário de empréstimo ganhou o checkbox **"Gerar termo de responsabilidade"** (marcado por padrão). Ao registrar, o termo é criado sozinho — com o **nome do funcionário** e o **tipo de equipamento** como primeiros dados do documento — e a janela de impressão abre em seguida.
+- O termo entra na coleção `TERMOS` com **hash SHA-256**, aparece em `/termos` e passa pelo mesmo fluxo de **Assinar / Revogar / revalidar** dos demais.
+- Toda linha da tabela de empréstimos ganhou o botão de termo (inclusive para empréstimos já devolvidos): reabre o documento para **imprimir de novo**.
+- **Sem migration e sem vínculo explícito entre as tabelas** — de propósito. O texto é montado só com campos que **não mudam depois de criado o empréstimo** (ativo, funcionário, matrícula, setor, datas). Como a montagem é determinística, o termo é **remontado a cada abertura** a partir do próprio empréstimo e o SHA-256 segue batendo; encontrá-lo é comparar o texto (`acharTermoDoEmprestimo`), não um id. Um empréstimo já devolvido continua imprimível igualzinho.
+- `src/lib/termos.ts` ganhou `conteudoTermoEmprestimo()` · `dadosTermoDeEmprestimo()` · `acharTermoDoEmprestimo()`. `Emprestimo` satisfaz `BaseTermoEmprestimo`, então o **mesmo** caminho serve o formulário ainda não salvo e o registro já persistido — os dois nunca divergem.
+- **Impressão** reaproveita o desenho das etiquetas (`window.print()` + `@media print`), com a classe `imprimindo-termo` e os seletores `.termo-*` / `.folha-termo` em `src/index.css`.
+- **Validação**: lint 0 warnings · `tsc -b` · **190/190 testes** (+10) · build OK · **E2E local 19/19, 0 erros de console** · **impressão 10/10** (mídia `print` emulada no Chrome: só a folha sobrevive, `#root` some, fundo branco, texto integral de 1180 caracteres). Folha conferida visualmente, com as duas linhas de assinatura (responsável e T.I.).
+
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.
 - ✅ **Hardening do `anon` (08/10/2026)**: teste externo com a chave pública achou 4 helpers (`perfil_atual`, `e_admin`, `pode_editar`, `papel_requisicao`) respondendo 200 para `anon` — causa raiz: o `pg_default_acl` do `supabase_admin` granta `execute` direto no `pg_proc.proacl` de toda função nova. 2 migrations novas (`20261008010000_anon_sem_helpers.sql` + `_supabase.sql`) revogaram `public` **e** `anon` e regraram o `execute` só para `authenticated`/`service_role`. Agora o teste externo dá **8/8**: 6 helpers → 401, só `solicitacao_por_token` → 200.

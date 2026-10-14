@@ -213,7 +213,7 @@ Pedido: *"use essa imagem para o icone da aplicação"*. Fonte: `~/Downloads/WAF
 - **Saiu `public/favicon.svg`**: raster não vira SVG vetorial de verdade, e embutir em base64 seria peso por nada. O `<link type="image/svg+xml">` saiu junto do `index.html`, senão viraria 404.
 - **`icon-192`/`icon-512` deixaram de ser órfãos**: não existia manifest e nada os referenciava. Agora há `public/manifest.webmanifest` (`start_url: "/"`, `display: standalone`, `theme_color: #007aff`) — e o app ficou **instalável**.
 - **Sem service worker, de propósito** — é o que evita a armadilha clássica do PWA servindo bundle velho.
-- **O logo interno (Sidebar e login) continua com o glyph `Boxes`** — decisão do usuário, trocar só a aba do navegador. Ou seja, aba e app mostram coisas diferentes, deliberadamente.
+- ~~**O logo interno (Sidebar e login) continua com o glyph `Boxes`**~~ — **superado**: o usuário pediu a unificação e tanto o login (`6798a02`) quanto o Sidebar (`2fb1d64`) passaram a usar o avatar. A marca está unificada nas três superfícies.
 - **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** · build OK · todos os 7 assets respondem. **Armadilha de verificação**: `/favicon.svg` ainda responde `200`, mas é o **fallback SPA** servindo `index.html` (`text/html`) — confira o `Content-Type` ou os magic bytes, senão o 204/200 mente.
 - ⚠️ **Cache**: favicon é cacheado com teimosia. Ctrl+Shift+R, e abas antigas podem mostrar o ícone velho por um tempo.
 
@@ -233,9 +233,24 @@ Pedido: *"troque o icone da tela de login por esse que te mandei"*. Antes era o 
 - **`src/vite-env.d.ts` ganhou `/// <reference types="vite/client" />`** — sem ele o `tsc -b` **reprovava** o import de `.png`, por não haver declaração de módulo para assets. Esse reference também cobre os tipos de `VITE_*`.
 - **`alt=""` no `<img>`**: o `<h1>` ao lado já diz "IT Stock & Inventory"; anunciar o logo duplicaria a leitura para quem usa leitor de tela.
 - **`Boxes` saiu do import** do `lucide-react` no `LoginPage` (só existia ali) — o oxlint `--deny-warnings` reprovaria por não usado.
-- **Ficam 3 marcas agora**: favicon e login com o avatar, **Sidebar continuando com `Boxes`** (decisão do usuário de trocar só o login). Unificar o Sidebar seria a mesma troca em cinco linhas.
+- ~~**Ficam 3 marcas agora**: favicon e login com o avatar, **Sidebar continuando com `Boxes`**~~ — **superado em seguida**: o usuário pediu a unificação e o Sidebar também passou ao avatar (`2fb1d64`).
 - **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** · build OK · asset no `dist/assets/` com hash e referenciado no `App-*.js` · **E2E local 13/13, 0 erros de console** · screenshot da tela de login conferido visualmente.
 - ⚠️ **Pegadinha operacional**: rodar `pkill -f "vite previe[w]"` **no mesmo comando** que lança o preview mata a própria shell — o padrão casa com o `npx vite preview` que está no texto do comando invocador. Separe em comandos (aconteceu uma vez; o `.env.local` sobreviveu só porque o `pkill` veio antes do `rm`).
+
+### Funcionalidade nova (14/10/2026) — **marca unificada: Sidebar também usa o avatar**
+Pedido: *"unifique tudo"*. Fecha a divergência que eu mesmo havia apontado — ficavam 3 marcas (favicon e login com o avatar, Sidebar com `Boxes`). Agora as três superfícies falam a mesma língua: **favicon, tela de login e Sidebar**, todas com o mesmo `src/assets/logo.png`.
+
+- O Sidebar usa o **mesmo asset** do login, no tile `h-9 w-9 rounded-xl`, mantendo o hover (`rotate-6` + `scale-110`) e a sombra `shadow-primary/30`.
+- ⚠️ **`Boxes` não é só logo — é a pegadinha desta mudança.** Ele aparece em **3 lugares** e só **um** é marca:
+  | Local | Papel |
+  |---|---|
+  | `src/lib/rotas.ts:31` | ícone de navegação da rota `/ativos` |
+  | `BuscaGlobal.tsx:83` | ícone de categoria nos resultados da busca |
+  | `Sidebar.tsx:29` | **o logo** ← único trocado |
+
+  Trocar "todo `Boxes`" cegamente teria **destruído o ícone do menu Ativos**. Por isso ele sai **só** do import do Sidebar; `rotas.ts` e `BuscaGlobal.tsx` seguem com os deles.
+- `alt=""` também aqui — o nome "IT Stock" está ao lado, em texto.
+- **Validação**: lint 0 warnings · `tsc -b` · **180/180 testes** · build OK · **E2E local 13/13, 0 erros de console** · screenshot logado conferido — avatar no Sidebar **e** glyph `Boxes` ainda intacto no menu Ativos.
 
 ### Pendências / cuidados
 - ✅ **2 migrations da Fase D aplicadas no Supabase** (07/10/2026) e verificadas no banco real: 47 policies (16 `_leitura` / 14 `_escrita` / 16 `_service_role` / `auditoria_insere`), **0** policies `*_temporario`, `anon` com **0** privilégios de tabela e **0** policies, `proxima_sequencia`/`reservar_sequencia` **sem** `execute` para `anon` (e sem `PUBLIC`), e as 2 RPCs do link **com** `execute` para `anon`.

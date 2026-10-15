@@ -58,7 +58,12 @@ async function perfilDoToken(cfg, token) {
     { headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}` } },
   )
   const linhas = await lerJson(consulta)
-  return Array.isArray(linhas) ? linhas[0] ?? null : null
+  const perfil = Array.isArray(linhas) ? linhas[0] ?? null : null
+  if (!perfil) return null
+  // Senha provisória: a tela já abre um modal que não fecha, mas a tela é só
+  // o navegador de quem está logado — não impede nada. Marcar aqui é o que
+  // deixa a regra valer também para quem chama a API por fora.
+  return { ...perfil, trocarSenha: Boolean(user.user_metadata?.trocar_senha) }
 }
 
 async function criar(cfg, corpo) {
@@ -342,6 +347,23 @@ export default async function handler(req, res) {
       mensagem: `acesso negado — perfil ${chamador.perfil}, status ${chamador.status}`,
     })
     return res.status(403).json({ erro: 'Somente administradores gerenciam usuários' })
+  }
+
+  // Senha provisória ainda em uso: a mesma trava da tela, agora no servidor.
+  // Sem isto, um Admin recém-criado conseguia continuar gerenciando contas
+  // por curl sem nunca trocar a senha que recebeu — medido em produção
+  // (15/10/2026): a API devolvia 200 com `trocar_senha: true`.
+  if (chamador.trocarSenha) {
+    await auditar(cfg, {
+      usuario: chamador.email,
+      acao: ACAO_LOG[acao] ?? 'UPDATE',
+      registroId: alvo,
+      resultado: 'Erro',
+      mensagem: 'senha provisória ainda não trocada — gestão recusada',
+    })
+    return res.status(403).json({
+      erro: 'Sua senha ainda é a provisória. Troque-a antes de gerenciar usuários.',
+    })
   }
 
   if (!ACAO_LOG[acao]) {

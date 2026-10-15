@@ -12,28 +12,12 @@
  *   { acao: 'redefinir', email }                      → { email, senhaProvisoria }
  *   { acao: 'excluir',   email }                      → { email, contaApagada }
  */
+// Núcleo compartilhado com as demais Functions (config, sessão, auditoria).
+// Ver `api/_lib.mjs` — o `_` faz a Vercel não expor este arquivo como rota.
+import { auditar, config, lerJson, perfilDoToken } from './_lib.mjs'
+
 const PERFIS = ['Admin', 'Gerente', 'Técnico', 'Visualizador']
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function config() {
-  const url = process.env.SUPABASE_URL
-  const publica = process.env.SUPABASE_PUBLISHABLE_KEY
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !publica || !service) {
-    return { erro: 'Supabase não configurado no servidor (env vars ausentes)' }
-  }
-  return { url, publica, service }
-}
-
-async function lerJson(resposta) {
-  const texto = await resposta.text()
-  if (!texto) return null
-  try {
-    return JSON.parse(texto)
-  } catch {
-    return { mensagem: texto }
-  }
-}
 
 function senhaProvisoria() {
   const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
@@ -42,28 +26,6 @@ function senhaProvisoria() {
   const sorteio = (fonte, n) =>
     Array.from({ length: n }, () => fonte[crypto.getRandomValues(new Uint32Array(1))[0] % fonte.length]).join('')
   return `Itstock-${sorteio(letras, 2)}${sorteio(numeros, 4)}${sorteio(tudo, 4)}`
-}
-
-/** Devolve o perfil (com auth_id) de quem enviou o token, ou null. */
-async function perfilDoToken(cfg, token) {
-  const resposta = await fetch(`${cfg.url}/auth/v1/user`, {
-    headers: { apikey: cfg.publica, Authorization: `Bearer ${token}` },
-  })
-  if (!resposta.ok) return null
-  const user = await lerJson(resposta)
-  if (!user?.email) return null
-
-  const consulta = await fetch(
-    `${cfg.url}/rest/v1/usuarios?email=eq.${encodeURIComponent(user.email)}&select=email,nome,perfil,status,auth_id`,
-    { headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}` } },
-  )
-  const linhas = await lerJson(consulta)
-  const perfil = Array.isArray(linhas) ? linhas[0] ?? null : null
-  if (!perfil) return null
-  // Senha provisória: a tela já abre um modal que não fecha, mas a tela é só
-  // o navegador de quem está logado — não impede nada. Marcar aqui é o que
-  // deixa a regra valer também para quem chama a API por fora.
-  return { ...perfil, trocarSenha: Boolean(user.user_metadata?.trocar_senha) }
 }
 
 async function criar(cfg, corpo) {
@@ -225,60 +187,6 @@ async function excluir(cfg, corpo, chamador) {
   return { status: 200, corpo: { email, contaApagada } }
 }
 
-/**
- * Registra a ação no log de auditoria.
- *
- * Por que isto existe: criar/redefinir/excluir são chamados numa Function que
- * qualquer portador de token de Admin válido alcança direto, sem passar pela
- * tela. Enquanto a gravação era só do navegador, esse caminho não deixava
- * rastro nenhum — confirmado por teste em produção (15/10/2026): criar e
- * apagar conta pela API devolveu 200 e a tabela `auditoria` ficou igual.
- *
- * Duas coisas de propósito aqui:
- *  - a senha provisória NUNCA entra nos campos auditados;
- *  - a falha de auditoria é reportada no log do servidor mas não derruba a
- *    operação — derrubar a gestão de contas por causa do log seria pior. O
- *    RLS da `auditoria` (append-only, sem UPDATE/DELETE) impede que quem
- *    chame a API apague a própria trilha depois.
- */
-async function auditar(cfg, entrada) {
-  try {
-    // mesmo formato de id que o cliente usa ('LOG-AAAA-NNNNNN'), na mesma
-    // sequência — os dois fluxos continuam numerados numa linha só
-    const seq = await fetch(`${cfg.url}/rest/v1/rpc/proxima_sequencia`, {
-      method: 'POST',
-      headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_nome: 'LOG' }),
-    })
-    const numero = seq.ok ? await lerJson(seq) : null
-
-    const resposta = await fetch(`${cfg.url}/rest/v1/auditoria`, {
-      method: 'POST',
-      headers: {
-        apikey: cfg.service,
-        Authorization: `Bearer ${cfg.service}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({
-        id: `LOG-${new Date().getFullYear()}-${String(numero ?? Date.now()).padStart(6, '0')}`,
-        usuario: entrada.usuario,
-        acao: entrada.acao,
-        tabela: 'USUARIOS',
-        registro_id: entrada.registroId,
-        campos: entrada.campos ?? [],
-        resultado: entrada.resultado,
-        mensagem: entrada.mensagem ?? null,
-      }),
-    })
-    if (!resposta.ok) {
-      console.error('[api/usuarios] auditoria:', resposta.status, await lerJson(resposta))
-    }
-  } catch (erro) {
-    console.error('[api/usuarios] auditoria:', erro)
-  }
-}
-
 /** Ação da API → ação do vocabulário da `auditoria` (constraint da tabela). */
 const ACAO_LOG = { criar: 'CREATE', redefinir: 'RESET', excluir: 'DELETE' }
 
@@ -341,6 +249,7 @@ export default async function handler(req, res) {
   if (chamador.perfil !== 'Admin' || chamador.status !== 'Ativo') {
     await auditar(cfg, {
       usuario: chamador.email,
+      tabela: 'USUARIOS',
       acao: ACAO_LOG[acao] ?? 'UPDATE',
       registroId: alvo,
       resultado: 'Erro',
@@ -356,6 +265,7 @@ export default async function handler(req, res) {
   if (chamador.trocarSenha) {
     await auditar(cfg, {
       usuario: chamador.email,
+      tabela: 'USUARIOS',
       acao: ACAO_LOG[acao] ?? 'UPDATE',
       registroId: alvo,
       resultado: 'Erro',
@@ -382,6 +292,7 @@ export default async function handler(req, res) {
 
     await auditar(cfg, {
       usuario: chamador.email,
+      tabela: 'USUARIOS',
       acao: ACAO_LOG[acao],
       registroId: alvo,
       resultado: r.status < 400 ? 'Sucesso' : 'Erro',
@@ -394,6 +305,7 @@ export default async function handler(req, res) {
     console.error('[api/usuarios] erro inesperado:', erro)
     await auditar(cfg, {
       usuario: chamador.email,
+      tabela: 'USUARIOS',
       acao: ACAO_LOG[acao],
       registroId: alvo,
       resultado: 'Erro',

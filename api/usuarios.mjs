@@ -220,6 +220,96 @@ async function excluir(cfg, corpo, chamador) {
   return { status: 200, corpo: { email, contaApagada } }
 }
 
+/**
+ * Registra a ação no log de auditoria.
+ *
+ * Por que isto existe: criar/redefinir/excluir são chamados numa Function que
+ * qualquer portador de token de Admin válido alcança direto, sem passar pela
+ * tela. Enquanto a gravação era só do navegador, esse caminho não deixava
+ * rastro nenhum — confirmado por teste em produção (15/10/2026): criar e
+ * apagar conta pela API devolveu 200 e a tabela `auditoria` ficou igual.
+ *
+ * Duas coisas de propósito aqui:
+ *  - a senha provisória NUNCA entra nos campos auditados;
+ *  - a falha de auditoria é reportada no log do servidor mas não derruba a
+ *    operação — derrubar a gestão de contas por causa do log seria pior. O
+ *    RLS da `auditoria` (append-only, sem UPDATE/DELETE) impede que quem
+ *    chame a API apague a própria trilha depois.
+ */
+async function auditar(cfg, entrada) {
+  try {
+    // mesmo formato de id que o cliente usa ('LOG-AAAA-NNNNNN'), na mesma
+    // sequência — os dois fluxos continuam numerados numa linha só
+    const seq = await fetch(`${cfg.url}/rest/v1/rpc/proxima_sequencia`, {
+      method: 'POST',
+      headers: { apikey: cfg.service, Authorization: `Bearer ${cfg.service}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_nome: 'LOG' }),
+    })
+    const numero = seq.ok ? await lerJson(seq) : null
+
+    const resposta = await fetch(`${cfg.url}/rest/v1/auditoria`, {
+      method: 'POST',
+      headers: {
+        apikey: cfg.service,
+        Authorization: `Bearer ${cfg.service}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        id: `LOG-${new Date().getFullYear()}-${String(numero ?? Date.now()).padStart(6, '0')}`,
+        usuario: entrada.usuario,
+        acao: entrada.acao,
+        tabela: 'USUARIOS',
+        registro_id: entrada.registroId,
+        campos: entrada.campos ?? [],
+        resultado: entrada.resultado,
+        mensagem: entrada.mensagem ?? null,
+      }),
+    })
+    if (!resposta.ok) {
+      console.error('[api/usuarios] auditoria:', resposta.status, await lerJson(resposta))
+    }
+  } catch (erro) {
+    console.error('[api/usuarios] auditoria:', erro)
+  }
+}
+
+/** Ação da API → ação do vocabulário da `auditoria` (constraint da tabela). */
+const ACAO_LOG = { criar: 'CREATE', redefinir: 'RESET', excluir: 'DELETE' }
+
+/** Mensagem lida na tela de auditoria — mesmo tom das linhas gravadas pelo cliente. */
+const MENSAGEM_OK = {
+  criar: 'Conta criada pela API',
+  redefinir: 'Senha redefinida pela API',
+  excluir: 'Conta excluída pela API',
+}
+
+/**
+ * Resumo do que foi feito, sem segredo.
+ * A senha provisória é gerada e devolvida na resposta, mas fica de fora daqui
+ * de propósito: o log é legível por quem lê auditoria e não é um lugar para
+ * credencial, mesmo provisória.
+ */
+function resumoCampos(acao, corpo, resultado) {
+  if (acao === 'criar') {
+    return [
+      { campo: 'email', antes: null, depois: resultado.email ?? null },
+      { campo: 'nome', antes: null, depois: String(corpo.nome ?? '') },
+      { campo: 'perfil', antes: null, depois: String(corpo.perfil ?? '') },
+      { campo: 'setor', antes: null, depois: String(corpo.setor ?? '') },
+    ]
+  }
+  if (acao === 'redefinir') {
+    return [
+      { campo: 'senha', antes: null, depois: 'provisória regenerada' },
+      { campo: 'trocar_senha', antes: null, depois: true },
+    ]
+  }
+  return [
+    { campo: 'conta_apagada', antes: null, depois: resultado.contaApagada ?? null },
+  ]
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store')
 
@@ -236,29 +326,57 @@ export default async function handler(req, res) {
 
   const chamador = await perfilDoToken(cfg, token)
   if (!chamador) return res.status(401).json({ erro: 'Sessão inválida' })
+
+  const corpo = typeof req.body === 'object' && req.body !== null ? req.body : {}
+  const acao = String(corpo.acao ?? '')
+  const alvo = String(corpo.email ?? '').trim().toLowerCase() || '—'
+
+  // Tentativa negada é o sinal mais interessante do log: alguém com conta
+  // válida tentou gerenciar usuários sem ter o direito.
   if (chamador.perfil !== 'Admin' || chamador.status !== 'Ativo') {
+    await auditar(cfg, {
+      usuario: chamador.email,
+      acao: ACAO_LOG[acao] ?? 'UPDATE',
+      registroId: alvo,
+      resultado: 'Erro',
+      mensagem: `acesso negado — perfil ${chamador.perfil}, status ${chamador.status}`,
+    })
     return res.status(403).json({ erro: 'Somente administradores gerenciam usuários' })
   }
 
-  const corpo = typeof req.body === 'object' && req.body !== null ? req.body : {}
-  try {
-    if (corpo.acao === 'criar') {
-      const r = await criar(cfg, corpo)
-      return res.status(r.status).json(r.corpo)
-    }
-    if (corpo.acao === 'redefinir') {
-      const r = await redefinir(cfg, corpo, chamador)
-      return res.status(r.status).json(r.corpo)
-    }
-    if (corpo.acao === 'excluir') {
-      const r = await excluir(cfg, corpo, chamador)
-      return res.status(r.status).json(r.corpo)
-    }
+  if (!ACAO_LOG[acao]) {
     return res
       .status(400)
       .json({ erro: 'Ação desconhecida (use "criar", "redefinir" ou "excluir")' })
+  }
+
+  try {
+    const r =
+      acao === 'criar'
+        ? await criar(cfg, corpo)
+        : acao === 'redefinir'
+          ? await redefinir(cfg, corpo, chamador)
+          : await excluir(cfg, corpo, chamador)
+
+    await auditar(cfg, {
+      usuario: chamador.email,
+      acao: ACAO_LOG[acao],
+      registroId: alvo,
+      resultado: r.status < 400 ? 'Sucesso' : 'Erro',
+      mensagem: r.status < 400 ? MENSAGEM_OK[acao] : (r.corpo?.erro ?? `HTTP ${r.status}`),
+      campos: r.status < 400 ? resumoCampos(acao, corpo, r.corpo) : [],
+    })
+
+    return res.status(r.status).json(r.corpo)
   } catch (erro) {
     console.error('[api/usuarios] erro inesperado:', erro)
+    await auditar(cfg, {
+      usuario: chamador.email,
+      acao: ACAO_LOG[acao],
+      registroId: alvo,
+      resultado: 'Erro',
+      mensagem: 'exceção não tratada na API',
+    })
     return res.status(500).json({ erro: 'Erro interno ao gerenciar o usuário' })
   }
 }

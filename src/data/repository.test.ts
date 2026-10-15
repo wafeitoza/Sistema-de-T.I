@@ -246,4 +246,26 @@ describe('modo Supabase — sequências com bloco', () => {
     expect(localStorage.getItem('ITSTOCK_SEQ_SET')).toBe('120')
     expect(repository.proximaSequencia('SET')).toBe(121)
   })
+
+  // Regressão do E2E de produção de 15/10/2026: o topo do bloco vivia só no
+  // Map em memória, então o F5 o perdia, `blocoInsuficiente()` calculava
+  // `0 - leiaSEQ()` — número negativo, sempre "insuficiente" — e o boot
+  // reservava mais 50 por nome sem ninguém ter pedido um único número.
+  // `ATV_NOTE` foi de 800 a 1100 em três recargas, sem criar ativo algum.
+  it('o bloco atravessa o F5 (topo no localStorage, não só no Map)', async () => {
+    mocks.proximaSequenciaRemota.mockImplementation((_nome, qtd) => Promise.resolve(qtd))
+    const primeira = await carregar()
+    await primeira.repository.prepararBlocos()
+    expect(primeira.repository.proximaSequencia('SET')).toBe(1)
+    expect(mocks.proximaSequenciaRemota).toHaveBeenCalledTimes(2)
+
+    // F5: módulo novo (Map vazio, como a aba recarregada), localStorage igual
+    vi.resetModules()
+    const segunda = await carregar()
+    await segunda.repository.prepararBlocos()
+
+    expect(mocks.proximaSequenciaRemota).toHaveBeenCalledTimes(2)
+    expect(segunda.repository.limiteDeSequencia('SET')).toBe(50)
+    expect(segunda.repository.proximaSequencia('SET')).toBe(2)
+  })
 })

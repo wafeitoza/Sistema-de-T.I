@@ -14,9 +14,36 @@ const PREFIXO = 'ITSTOCK_'
 /** Quando falta esta quantidade no bloco, já busca outro no servidor. */
 const PREFETCH = 25
 
-/** Último valor de sequência que este cliente pode usar por nome. */
+/**
+ * Último valor de sequência que este cliente pode usar por nome.
+ *
+ * O Map é só cache de escrita: a fonte de verdade é o localStorage, porque o
+ * topo do bloco é um direito **deste navegador** e tem que sobreviver ao F5.
+ * Antes vivia só no Map — aí cada recarga zerava `blocos`, `blocoInsuficiente()`
+ * calculava `0 - leiaSEQ()` (número negativo, sempre "insuficiente") e o boot
+ * reservava outro bloco de 100, mesmo sem o cliente precisar de nenhum número.
+ * Medido em produção em 15/10/2026: três recargas do E2E levaram `ATV_NOTE`
+ * de 800 a 1100 sem criar um único ativo.
+ */
 const blocos = new Map<string, number>()
 const reservas = new Map<string, Promise<void>>()
+
+function leiaBLOCO(nome: string): number {
+  const emMemoria = blocos.get(nome)
+  if (emMemoria !== undefined) return emMemoria
+
+  const bruto = localStorage.getItem(`${PREFIXO}BLOCO_${nome}`)
+  const valor = bruto === null ? 0 : Number(bruto)
+  if (!Number.isFinite(valor) || valor <= 0) return 0
+
+  blocos.set(nome, valor)
+  return valor
+}
+
+function gravaBLOCO(nome: string, valor: number): void {
+  blocos.set(nome, valor)
+  localStorage.setItem(`${PREFIXO}BLOCO_${nome}`, String(valor))
+}
 
 export function lerColecao<T>(colecao: string): T[] {
   try {
@@ -110,12 +137,11 @@ export function proximaSequencia(nome: string): number {
 }
 
 function blocoInsuficiente(nome: string): boolean {
-  const limite = blocos.get(nome) ?? 0
-  return limite - leiaSEQ(nome) <= PREFETCH
+  return leiaBLOCO(nome) - leiaSEQ(nome) <= PREFETCH
 }
 
 function garanteReserva(nome: string, usado: number): void {
-  if (usado > (blocos.get(nome) ?? 0) || blocoInsuficiente(nome)) {
+  if (usado > leiaBLOCO(nome) || blocoInsuficiente(nome)) {
     void reservar(nome)
   }
 }
@@ -132,7 +158,7 @@ function reservar(nome: string, qtd: number = TAMANHO_BLOCO): Promise<void> {
       if (topo === null) return
       const base = topo - qtd // valores base+1..topo ficam com este cliente
       if (base > leiaSEQ(nome)) gravaSEQ(nome, base)
-      blocos.set(nome, Math.max(blocos.get(nome) ?? 0, topo))
+      gravaBLOCO(nome, Math.max(leiaBLOCO(nome), topo))
     })
     .catch((erro) => {
       console.error(`[supabase] falha ao reservar sequência ${nome}:`, erro)
@@ -149,7 +175,7 @@ function reservar(nome: string, qtd: number = TAMANHO_BLOCO): Promise<void> {
  */
 export function garantirBloco(nome: string, necessario: number): void {
   if (!modoSupabase) return
-  const limite = blocos.get(nome) ?? 0
+  const limite = leiaBLOCO(nome)
   if (necessario <= limite) return
   reservar(nome, necessario - limite + TAMANHO_BLOCO)
 }
@@ -161,6 +187,12 @@ export function garantirBloco(nome: string, necessario: number): void {
  * aba, F5), reservar sempre queimaria 26 × 50 = 1300 números do servidor
  * por volta de aba — medido em produção em 13/10/2026, quando o E2E viu a
  * sequência de NOTE ir de 0 a 250 e o primeiro ativo sair NOTE-051.
+ *
+ * A proteção só funcionava dentro da mesma aba: `blocos` vivia no Map, então
+ * o F5 zerava o limite e o boot reservava mais 100 por nome sem ninguém
+ * pedir (15/10/2026: `ATV_NOTE` foi de 800 a 1100 em três recargas, sem criar
+ * ativo). Por isso o topo agora é lido do localStorage — o bloco é direito
+ * deste navegador e precisa atravessar o reload.
  */
 export async function prepararBlocos(): Promise<void> {
   const faltando = NOMES_SEQUENCIA.filter((nome) => blocoInsuficiente(nome))
@@ -177,14 +209,14 @@ export async function prepararBlocos(): Promise<void> {
  */
 export function carregarSequencia(nome: string, valor: number): void {
   if (!Number.isFinite(valor)) return
-  if (blocos.has(nome)) return
+  if (leiaBLOCO(nome) > 0) return
   const local = leiaSEQ(nome)
   if (valor > local) gravaSEQ(nome, valor)
 }
 
 /** Visibilidade do bloco de um nome (útil em teste/debug). */
 export function limiteDeSequencia(nome: string): number | undefined {
-  return blocos.get(nome)
+  return leiaBLOCO(nome) || undefined
 }
 
 export function colecaoExiste(colecao: string): boolean {

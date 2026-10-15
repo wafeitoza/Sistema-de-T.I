@@ -15,6 +15,7 @@ import { useInventarioStore } from '../../store/inventario'
 import { useManutencoesStore } from '../../store/manutencao'
 import { useSolicitacoesStore } from '../../store/solicitacoes'
 import { useEmprestimosStore } from '../../store/emprestimos'
+import { useChamadosStore } from '../../store/chamados'
 
 const ICONE_TOM = {
   danger: <AlertTriangle size={15} className="text-danger" />,
@@ -34,6 +35,7 @@ export function SinoNotificacoes() {
   const solicitacoes = useSolicitacoesStore((s) => s.solicitacoes)
   const contagens = useInventarioStore((s) => s.contagens)
   const emprestimos = useEmprestimosStore((s) => s.emprestimos)
+  const chamados = useChamadosStore((s) => s.chamados)
 
   const alertas = useMemo(
     () =>
@@ -43,8 +45,9 @@ export function SinoNotificacoes() {
         solicitacoes,
         contagens,
         emprestimos,
+        chamados,
       }),
-    [usuario?.perfil, itens, manutencoes, solicitacoes, contagens, emprestimos],
+    [usuario?.perfil, itens, manutencoes, solicitacoes, contagens, emprestimos, chamados],
   )
 
   useEffect(() => {

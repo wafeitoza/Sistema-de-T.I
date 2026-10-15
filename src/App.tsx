@@ -6,6 +6,7 @@ import { Toasts } from './components/ui/Toasts'
 import { AprovacaoPage } from './pages/solicitacoes/AprovacaoPage'
 import { AtivosPage } from './pages/ativos/AtivosPage'
 import { AuditoriaPage } from './pages/auditoria/AuditoriaPage'
+import { ChamadosPage } from './pages/chamados/ChamadosPage'
 import { ConfiguracoesPage } from './pages/config/ConfiguracoesPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { RelatoriosPage } from './pages/relatorios/RelatoriosPage'
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/fornecedores" element={<FornecedoresPage />} />
           <Route path="/termos" element={<TermosPage />} />
           <Route path="/manutencao" element={<ManutencaoPage />} />
+          <Route path="/chamados" element={<ChamadosPage />} />
           <Route path="/usuarios" element={<UsuariosPage />} />
           <Route path="/relatorios" element={<RelatoriosPage />} />
           <Route path="/auditoria" element={<AuditoriaPage />} />

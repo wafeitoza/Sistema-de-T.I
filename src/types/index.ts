@@ -90,6 +90,55 @@ export interface Emprestimo {
   atualizadoEm: string
 }
 
+export type StatusChamado =
+  | 'Aberto'
+  | 'Em atendimento'
+  | 'Aguardando usuário'
+  | 'Resolvido'
+  | 'Cancelado'
+
+export type PrioridadeChamado = 'Baixa' | 'Média' | 'Alta' | 'Crítica'
+
+/** Manual = aberto na tela; E-mail = veio da sincronização com o Gmail. */
+export type OrigemChamado = 'Manual' | 'E-mail'
+
+export interface Chamado {
+  id: string
+  assunto: string
+  descricao?: string
+  /** E-mail de quem abriu — é para cá que vai a resposta. */
+  solicitante: string
+  origem: OrigemChamado
+  prioridade: PrioridadeChamado
+  status: StatusChamado
+  atribuidoA?: string
+  /** Fio no Gmail: é o que faz a resposta cair na conversa certa. */
+  emailThreadId?: string
+  emailMensagemId?: string
+  emailUrl?: string
+  resolvidoEm?: string
+  registradoPor: string
+  resolvidoPor?: string
+  canceladoPor?: string
+  criadoEm: string
+  atualizadoEm: string
+  /** Só preenchida ao abrir o detalhe (a lista vem sem o fio). */
+  mensagens?: ChamadoMensagem[]
+}
+
+export interface ChamadoMensagem {
+  id: string
+  chamadoId: string
+  direcao: 'recebida' | 'enviada'
+  remetente: string
+  destinatarios?: string
+  assunto?: string
+  corpo?: string
+  emailId?: string
+  recebidoEm: string
+  criadoEm: string
+}
+
 export type StatusEstoque = 'Normal' | 'Baixo' | 'Zerado'
 
 export interface ItemEstoque {

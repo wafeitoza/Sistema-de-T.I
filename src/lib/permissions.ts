@@ -13,6 +13,9 @@ export const ACESSO_ROTA: Record<string, Perfil[]> = {
   '/solicitacoes': ['Admin', 'Gerente'],
   '/movimentacoes': ['Admin', 'Gerente', 'Técnico'],
   '/emprestimos': ['Admin', 'Gerente', 'Técnico'],
+  // Visualizador vê a fila no dashboard, mas não opera chamado — mesmo
+  // recorte de `pode_editar()` que o RLS da tabela aplica.
+  '/chamados': ['Admin', 'Gerente', 'Técnico'],
   '/setores': ['Admin', 'Gerente'],
   '/fornecedores': ['Admin', 'Gerente'],
   '/termos': ['Admin', 'Gerente', 'Técnico'],

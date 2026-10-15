@@ -11,7 +11,7 @@ export interface Definicao {
   modo?: 'padrao' | 'append' | 'contagens'
 }
 
-/** Coleção do localStorage → tabela do Postgres (14 no total). */
+/** Coleção do localStorage → tabela do Postgres (16 no total). */
 export const DEFINICOES: Record<string, Definicao> = {
   USUARIOS: { tabela: 'usuarios', chave: 'email' },
   SETORES: { tabela: 'setores', chave: 'id' },
@@ -26,11 +26,15 @@ export const DEFINICOES: Record<string, Definicao> = {
   TERMOS: { tabela: 'termos', chave: 'id' },
   MOVIMENTACOES: { tabela: 'movimentacoes', chave: 'id' },
   EMPRESTIMOS: { tabela: 'emprestimos', chave: 'id' },
+  CHAMADOS: { tabela: 'chamados', chave: 'id' },
+  CHAMADO_MENSAGENS: { tabela: 'chamado_mensagens', chave: 'id' },
   LOG: { tabela: 'auditoria', chave: 'id', modo: 'append' },
 }
 
 /** Nomes de sequência usados pelo app (mesma lista do backup). */
 export const NOMES_SEQUENCIA: readonly string[] = [
+  'CHM',
+  'CMM',
   'EDD',
   'EMP',
   'FOR',

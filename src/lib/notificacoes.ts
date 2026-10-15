@@ -1,6 +1,7 @@
 import { diasAte, formatarData } from './format'
 import { podeAcessarRota } from './permissions'
 import type {
+  Chamado,
   Contagem,
   Emprestimo,
   ItemEstoque,
@@ -27,6 +28,7 @@ export interface DadosAlertas {
   solicitacoes: Solicitacao[]
   contagens: Contagem[]
   emprestimos?: Emprestimo[]
+  chamados?: Chamado[]
 }
 
 export function calcularAlertas(
@@ -123,6 +125,23 @@ export function calcularAlertas(
           tom: 'warning',
         })
       }
+    }
+  }
+
+  // Chamado 'Aberto' é o que ninguém olhou ainda: é o alerta que existe para
+  // a fila não virar caixa de correio. 'Aguardando usuário' fica de fora de
+  // propósito — quem está esperando é o solicitante, não a TI.
+  if (perfil && podeAcessarRota('/chamados', perfil)) {
+    for (const c of dados.chamados ?? []) {
+      if (c.status !== 'Aberto') continue
+      const urgente = c.prioridade === 'Crítica' || c.prioridade === 'Alta'
+      alertas.push({
+        id: `chamado:${c.id}:aberto`,
+        titulo: urgente ? 'Chamado urgente sem responsável' : 'Chamado sem responsável',
+        descricao: `${c.id} — ${c.assunto}`,
+        rota: '/chamados',
+        tom: urgente ? 'danger' : 'warning',
+      })
     }
   }
 

@@ -1,4 +1,5 @@
 import { useAtivosStore } from './ativos'
+import { useChamadosStore } from './chamados'
 import { useEmprestimosStore } from './emprestimos'
 import { useEstoqueStore } from './estoque'
 import { useFornecedoresStore } from './fornecedores'
@@ -31,4 +32,5 @@ export function recarregarTodasAsLojas(): void {
   useFornecedoresStore.getState().recarregar()
   useMovimentacoesStore.getState().recarregar()
   useSetoresStore.getState().recarregar()
+  useChamadosStore.getState().recarregar()
 }

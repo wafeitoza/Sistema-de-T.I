@@ -33,6 +33,11 @@ const MAPA_STATUS: Record<string, Tom> = {
   Devolvido: 'success',
   Cancelado: 'neutral',
   Atrasado: 'danger',
+  // chamados: 'Aberto' é o que ninguém olhou ainda, por isso vermelho
+  Aberto: 'danger',
+  'Em atendimento': 'info',
+  'Aguardando usuário': 'warning',
+  Resolvido: 'success',
 }
 
 export function tomDoStatus(status: string): Tom {

@@ -18,11 +18,15 @@ Regras que valem para a bateria inteira:
   apagadas ao final. Nenhum dado real foi lido, alterado ou removido.
 - **Nenhuma chave sai da máquina**: os scripts leem `.env.local` e só imprimem
   status e mensagens de erro.
-- **Limpeza verificada**, não presumida: ao final de cada bateria, `usuarios` e
-  `auth.users` são listados por inteiro e filtrados no cliente. (O primeiro
-  rascunho filtrou com `like.*seg-*`, que no PostgREST **não é curinga** — o
-  curinga é `%` — e devolveu 0 por não casar com nada. A verificação foi
-  refeita corretamente e confirmou zero resíduos.)
+- **Limpeza verificada, não presumida.** Durante os testes surgiu a dúvida de
+  que o filtro `email=like.*seg-*` não fosse curinga (e que "0 resíduos"
+  significasse apenas "o padrão não casou com nada"). Isso foi **testado e
+  refutado**: no PostgREST, `like.*@empresa.com` devolve a linha real e
+  `ilike.*EMPRESA.com` também, ou seja `*` é convertido para `%` — o padrão
+  estava certo e a primeira verificação já era válida. Ainda assim, a checagem
+  final foi refeita listando `usuarios` e `auth.users` **por inteiro** e filtrando
+  no cliente, que é a forma que não depende de nenhuma semântica de filtro:
+  **0 resíduos**.
 - **Linhas de auditoria geradas pelos testes permanecem.** A `auditoria` é
   append-only por desenho (trigger bloqueia UPDATE/DELETE) e seria
   contraditório apagar a própria trilha num teste de segurança. Regras de teste

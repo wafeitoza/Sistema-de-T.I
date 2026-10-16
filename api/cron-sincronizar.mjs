@@ -1,18 +1,24 @@
 /**
- * Vercel Cron — sincroniza a caixa de chamados sem ninguém precisar clicar.
+ * Sincronização agendada — só executa no servidor da Vercel.
  *
- * GET /api/cron-sincronizar   (a cada 5 min, conforme `crons` no vercel.json)
+ * GET /api/cron-sincronizar   (a cada 5 min, pelo workflow
+ *                              `.github/workflows/chamados-sync.yml`)
  *
  * Por que existe: a importação antes dependia de um Admin/Gerente/Técnico
  * abrir a tela e clicar em "Sincronizar agora". Um chamado que chega de
  * madrugada ou num feriado ficava invisível até alguém entrar — justamente
- * quando o tempo de resposta mais pesa. Com o cron, o e-mail que chega na
- * caixa conectada vira chamado sozinho em minutos.
+ * quando o tempo de resposta mais pesa. Com o gatilho agendado, o e-mail que
+ * chega na caixa conectada vira chamado sozinho em minutos.
  *
- * Autenticação: a Vercel envia `Authorization: Bearer ${CRON_SECRET}` em toda
- * invocação de cron quando a env var existe. Sem CRON_SECRET configurado o
- * endpoint recusa tudo (fechado por padrão) — não pode existir um caminho
- * público que dispare leitura de caixa e escrita no banco.
+ * O agendador é o GitHub Actions e não o Vercel Cron porque o plano free da
+ * Vercel roda cron no máximo 1x/dia; o repo é público e o Actions agendado é
+ * gratuito e ilimitado.
+ *
+ * Autenticação: o workflow envia `Authorization: Bearer ${CRON_SECRET}` — o
+ * MESMO valor da env var `CRON_SECRET` na Vercel (Settings → Environment
+ * Variables). Sem a env var configurada o endpoint recusa tudo (fechado por
+ * padrão) — não pode existir um caminho público que dispare leitura de caixa
+ * e escrita no banco.
  *
  * O ator auditado é `sistema`, não um usuário: não há sessão de humano aqui.
  * A dedupe do banco (índices únicos em `email_id`) protege contra corrida

@@ -2,7 +2,8 @@
  * Núcleo da integração com o Gmail — não vira rota (prefixo `_`).
  *
  * A sincronização passou a ter dois gatilhos: o clique em "Sincronizar agora"
- * (`api/chamados.mjs`) e o Vercel Cron (`api/cron-sincronizar.mjs`). Manter a
+ * (`api/chamados.mjs`) e o agendador do GitHub Actions
+ * (`api/cron-sincronizar.mjs`). Manter a
  * lógica em cada um deles faria o importador divergir — o mesmo tipo de cópia
  * que motivou `api/_lib.mjs` e que a varredura de segurança de 15/10/2026
  * pegou no controle de `trocar_senha`.

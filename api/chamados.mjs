@@ -13,8 +13,9 @@
  * A dedupe não depende de a sincronização dar certo de ponta a ponta: tanto
  * `chamados.email_mensagem_id` quanto `chamado_mensagens.email_id` têm índice
  * único parcial no banco. Um crash no meio importa o resto na próxima vez e
- * nunca duplica — vale também para o Vercel Cron (`api/cron-sincronizar.mjs`),
- * que dispara a mesma rotina de `_gmail.mjs` sem passar por aqui.
+ * nunca duplica — vale também para o gatilho agendado
+ * (`api/cron-sincronizar.mjs`), que dispara a mesma rotina de `_gmail.mjs`
+ * sem passar por aqui.
  *
  * POST /api/chamados  { acao: 'status' }                      → estado da conexão
  *                   { acao: 'sincronizar' }                   → importação

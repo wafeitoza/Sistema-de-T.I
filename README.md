@@ -130,13 +130,16 @@ sai em modo `localStorage`:
 | `INTEGRACAO_CHAVE` | Function — cifra o refresh token (≥32 caracteres) |
 | `CRON_SECRET` | Function — segredo do cron `/api/cron-sincronizar` |
 
-**Sincronização automática de chamados** — o `vercel.json` registra um cron
-(`*/5 * * * *`) que chama `GET /api/cron-sincronizar`. A Vercel envia
-`Authorization: Bearer ${CRON_SECRET}` automaticamente em toda invocação de
-cron: sem a env var `CRON_SECRET` definida, o endpoint recusa tudo. No plano
-**Hobby** o Vercel Cron roda no máximo 1x/dia — nos planos Pro, a cada 5
-minutos. Enquanto a caixa não for conectada pela tela de Chamados, o cron
-apenas avisa no log e não importa nada.
+**Sincronização automática de chamados** — o workflow
+`.github/workflows/chamados-sync.yml` roda a cada 5 minutos e chama
+`GET /api/cron-sincronizar` com `Authorization: Bearer ${CRON_SECRET}`.
+São precisos **dois cadastros do mesmo valor**: a env var `CRON_SECRET` na
+Vercel (Settings → Environment Variables) e o secret `CRON_SECRET` no repo
+(Settings → Secrets and variables → Actions). Sem os dois, o endpoint recusa
+com 401 e o job falha visivelmente. O Actions agendado é gratuito porque o
+repo é público; workflows agendados de repo público são desativados após 60
+dias sem commits (um push reativa). Enquanto a caixa não for conectada pela
+tela de Chamados, o job apenas avisa no log e não importa nada.
 
 Depois de criar/editar env vars é preciso um **Redeploy** (entram só no build seguinte).
 

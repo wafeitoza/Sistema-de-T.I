@@ -124,6 +124,19 @@ sai em modo `localStorage`:
 | `SUPABASE_URL` | Function `api/usuarios.mjs` |
 | `SUPABASE_PUBLISHABLE_KEY` | Function |
 | `SUPABASE_SERVICE_ROLE_KEY` | Function — **nunca** no frontend |
+| `GOOGLE_CLIENT_ID` | Function — app OAuth do Gmail (chamados) |
+| `GOOGLE_CLIENT_SECRET` | Function — idem |
+| `GOOGLE_REDIRECT_URI` | Function — URI fixa registrada no Google |
+| `INTEGRACAO_CHAVE` | Function — cifra o refresh token (≥32 caracteres) |
+| `CRON_SECRET` | Function — segredo do cron `/api/cron-sincronizar` |
+
+**Sincronização automática de chamados** — o `vercel.json` registra um cron
+(`*/5 * * * *`) que chama `GET /api/cron-sincronizar`. A Vercel envia
+`Authorization: Bearer ${CRON_SECRET}` automaticamente em toda invocação de
+cron: sem a env var `CRON_SECRET` definida, o endpoint recusa tudo. No plano
+**Hobby** o Vercel Cron roda no máximo 1x/dia — nos planos Pro, a cada 5
+minutos. Enquanto a caixa não for conectada pela tela de Chamados, o cron
+apenas avisa no log e não importa nada.
 
 Depois de criar/editar env vars é preciso um **Redeploy** (entram só no build seguinte).
 

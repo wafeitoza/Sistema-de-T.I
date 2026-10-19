@@ -19,6 +19,7 @@ import { EstadoVazio } from '../../components/ui/EstadoVazio'
 import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
+import { tomPrioridade } from '../../components/ui/tom'
 import { formatarData } from '../../lib/format'
 import {
   conectarGmail,
@@ -291,19 +292,7 @@ export function ChamadosPage() {
                 </Celula>
                 <Celula className="text-sm">{c.solicitante}</Celula>
                 <Celula>
-                  <Badge
-                    tom={
-                      c.prioridade === 'Crítica'
-                        ? 'danger'
-                        : c.prioridade === 'Alta'
-                          ? 'warning'
-                          : c.prioridade === 'Média'
-                            ? 'info'
-                            : 'neutral'
-                    }
-                  >
-                    {c.prioridade}
-                  </Badge>
+                  <Badge tom={tomPrioridade(c.prioridade)}>{c.prioridade}</Badge>
                 </Celula>
                 <Celula className="text-sm">{c.atribuidoA ?? '—'}</Celula>
                 <Celula className="whitespace-nowrap text-sm">{formatarData(c.criadoEm)}</Celula>

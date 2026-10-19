@@ -43,3 +43,11 @@ const MAPA_STATUS: Record<string, Tom> = {
 export function tomDoStatus(status: string): Tom {
   return MAPA_STATUS[status] ?? 'neutral'
 }
+
+/** Mesma escala da fila: crítica em vermelho, baixa em cinza. */
+export function tomPrioridade(prioridade: string): Tom {
+  if (prioridade === 'Crítica') return 'danger'
+  if (prioridade === 'Alta') return 'warning'
+  if (prioridade === 'Média') return 'info'
+  return 'neutral'
+}

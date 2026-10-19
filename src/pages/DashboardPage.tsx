@@ -6,24 +6,28 @@ import {
   Box,
   CalendarClock,
   History,
+  LifeBuoy,
+  Mail,
   Package,
   Wrench,
 } from 'lucide-react'
 import { lerColecao } from '../data/repository'
-import { BadgeStatus } from '../components/ui/Badge'
+import { Badge, BadgeStatus } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
 import { Card3D } from '../components/ui/Card3D'
 import { Reveal } from '../components/ui/Reveal'
 import { cn } from '../lib/cn'
+import { tomPrioridade } from '../components/ui/tom'
 import { diasAte, formatarData } from '../lib/format'
 import { podeAcessarRota, podeEditar } from '../lib/permissions'
 import { statusEstoque } from '../store/estoque'
 import { useAtivosStore } from '../store/ativos'
 import { useAuthStore } from '../store/auth'
+import { useChamadosStore } from '../store/chamados'
 import { useEstoqueStore } from '../store/estoque'
 import { useManutencoesStore } from '../store/manutencao'
 import { useSolicitacoesStore } from '../store/solicitacoes'
-import type { LogEntrada } from '../types'
+import type { Chamado, LogEntrada, StatusChamado } from '../types'
 
 const ACOES_PT: Record<string, string> = {
   CREATE: 'Criou',
@@ -107,8 +111,9 @@ function CabecalhoLista({
   titulo: string
   detalhe: string
   cor: string
-  link: string
-  rotuloLink: string
+  /** Sem link quando o perfil não pode abrir a rota (ex.: Visualizador). */
+  link?: string
+  rotuloLink?: string
 }) {
   return (
     <div className="mb-2 flex items-center justify-between gap-3">
@@ -123,13 +128,63 @@ function CabecalhoLista({
           <p className="truncate text-[11px] text-content-muted">{detalhe}</p>
         </div>
       </div>
-      <Link
-        to={link}
-        className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary transition-all duration-200 hover:bg-primary/10 hover:shadow-sm active:scale-95"
-      >
-        {rotuloLink} →
-      </Link>
+      {link && rotuloLink && (
+        <Link
+          to={link}
+          className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary transition-all duration-200 hover:bg-primary/10 hover:shadow-sm active:scale-95"
+        >
+          {rotuloLink} →
+        </Link>
+      )}
     </div>
+  )
+}
+
+/** Ordem da fila: o que ninguém olhou vem primeiro. */
+const ORDEM_STATUS_CHAMADO: Record<StatusChamado, number> = {
+  Aberto: 0,
+  'Em atendimento': 1,
+  'Aguardando usuário': 2,
+  Resolvido: 3,
+  Cancelado: 4,
+}
+
+function CardChamado({ chamado, para }: { chamado: Chamado; para?: string }) {
+  const conteudo = (
+    <Card className="h-full p-4">
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-mono text-xs font-semibold text-content-muted">
+          {chamado.id}
+        </span>
+        {chamado.origem === 'E-mail' && (
+          <span
+            className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-content-muted"
+            title="Veio da sincronização com o e-mail"
+          >
+            <Mail size={11} /> e-mail
+          </span>
+        )}
+      </div>
+      <p className="mt-1.5 line-clamp-2 text-sm font-semibold text-content">
+        {chamado.assunto}
+      </p>
+      <p className="mt-0.5 truncate text-xs text-content-muted">{chamado.solicitante}</p>
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <Badge tom={tomPrioridade(chamado.prioridade)}>{chamado.prioridade}</Badge>
+        <BadgeStatus status={chamado.status} />
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2.5 text-[11px] text-content-muted">
+        <span className="truncate">{chamado.atribuidoA ?? 'Sem responsável'}</span>
+        <span className="shrink-0">{formatarData(chamado.criadoEm)}</span>
+      </div>
+    </Card>
+  )
+  return para ? (
+    <Link to={para} className="block h-full">
+      {conteudo}
+    </Link>
+  ) : (
+    conteudo
   )
 }
 
@@ -139,6 +194,7 @@ export function DashboardPage() {
   const { itens } = useEstoqueStore()
   const { manutencoes } = useManutencoesStore()
   const { solicitacoes } = useSolicitacoesStore()
+  const { chamados } = useChamadosStore()
 
   const ativosAtivos = ativos.filter((a) => a.status === 'Ativo')
   const itensRisco = itens.filter((i) => statusEstoque(i) !== 'Normal')
@@ -150,6 +206,19 @@ export function DashboardPage() {
     return dias !== null && dias <= 5
   })
   const solicitacoesPendentes = solicitacoes.filter((s) => s.status === 'Enviada')
+
+  // 'Em aberto' = ainda não resolvido nem cancelado — o resto é história.
+  const chamadosAbertos = chamados.filter(
+    (c) => c.status !== 'Resolvido' && c.status !== 'Cancelado',
+  )
+  const chamadosCriticos = chamadosAbertos.filter((c) => c.prioridade === 'Crítica')
+  const chamadosOrdenados = [...chamados].sort(
+    (a, b) =>
+      (ORDEM_STATUS_CHAMADO[a.status] ?? 9) - (ORDEM_STATUS_CHAMADO[b.status] ?? 9) ||
+      (a.atualizadoEm < b.atualizadoEm ? 1 : -1),
+  )
+  // Visualizador lê a fila no dashboard (mesmo RLS), mas não abre a rota.
+  const verFilaChamados = usuario ? podeAcessarRota('/chamados', usuario.perfil) : false
 
   // RLS da Fase D: `auditoria` só é legível por Admin/Gerente — mesma regra
   // da rota /auditoria. Para os demais perfis o card nem aparece.
@@ -216,7 +285,9 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* 5 métricas para Admin/Gerente (com solicitações); 4 para os
+          demais — a grade de 5 no xl deixa o espaço final vazio sem quebrar. */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="anim-fade-up group" style={{ animationDelay: '60ms' }}>
           <Metrica
             icone={<Box size={20} className="text-success" />}
@@ -269,6 +340,21 @@ export function DashboardPage() {
             />
           </div>
         )}
+        <div className="anim-fade-up group" style={{ animationDelay: '300ms' }}>
+          <Metrica
+            icone={<LifeBuoy size={20} className="text-danger" />}
+            titulo="Chamados em aberto"
+            valor={chamadosAbertos.length}
+            detalhe={
+              chamadosCriticos.length > 0
+                ? `${chamadosCriticos.length} crítica(s) · ${chamados.length} no total`
+                : `${chamados.length} chamados no total`
+            }
+            tom="from-danger/25 to-danger/5"
+            barra="from-danger to-warning"
+            progresso={chamados.length ? chamadosAbertos.length / chamados.length : 0}
+          />
+        </div>
       </section>
 
       <Reveal atraso={80}>
@@ -366,6 +452,48 @@ export function DashboardPage() {
             )}
           </Card>
         </div>
+      </Reveal>
+
+      <Reveal atraso={110}>
+        <Card>
+          <CabecalhoLista
+            icone={<LifeBuoy size={16} className="text-danger" />}
+            titulo="Fila de chamados"
+            detalhe={
+              chamadosAbertos.length > 0
+                ? `${chamadosAbertos.length} em aberto · mais antigo primeiro`
+                : 'Nenhum chamado em aberto'
+            }
+            cor="bg-danger/15"
+            link={verFilaChamados ? '/chamados' : undefined}
+            rotuloLink={verFilaChamados ? 'Ver chamados' : undefined}
+          />
+          {chamados.length === 0 ? (
+            <p className="py-4 text-sm text-content-muted">
+              Nenhum chamado registrado. A fila vem dos e-mails do GLPI e da tela de Chamados.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {chamadosOrdenados.slice(0, 6).map((c, idx) => (
+                <div
+                  key={c.id}
+                  style={{ animationDelay: `${idx * 50}ms` }}
+                  className="anim-fade-up"
+                >
+                  <CardChamado chamado={c} para={verFilaChamados ? '/chamados' : undefined} />
+                </div>
+              ))}
+            </div>
+          )}
+          {chamadosOrdenados.length > 6 && verFilaChamados && (
+            <p className="mt-3 text-right text-xs text-content-muted">
+              + {chamadosOrdenados.length - 6} outro(s) na fila ·{' '}
+              <Link to="/chamados" className="font-semibold text-primary hover:underline">
+                ver todos
+              </Link>
+            </p>
+          )}
+        </Card>
       </Reveal>
 
       {verAuditoria && (

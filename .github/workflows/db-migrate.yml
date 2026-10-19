@@ -1,0 +1,58 @@
+# Aplica migrations SQL pendentes no banco de PRODUÇÃO (uso manual).
+#
+# Por que existe: as migrations entram no repo por commit, mas nada as aplica
+# sozinhas no banco remoto. Em 19/10/2026 a produção ficou sem as tabelas de
+# `chamados` (migration de 15/10 nunca tinha rodado) e a tela de chamados
+# quebrou com PGRST205. Este workflow é o gatilho manual para isso não
+# depender de ninguém ter o CLI linkado na máquina pessoal.
+#
+# Como rodar:  gh workflow run db-migrate.yml   (ou Actions → Run workflow)
+#   input `migrations`: lista separada por vírgula com os nomes EXATOS dos
+#   arquivos em supabase/migrations/ a aplicar. Vazio = TODOS os que ainda
+#   não foram aplicados (calculado pela tabela supabase_migrations).
+#
+# Segredo exigido (já existe no repo, usado também pelo backup):
+#   SUPABASE_ACCESS_TOKEN  PAT sbp_… — Dashboard → Account → Access Tokens
+#
+# Segurança:
+#   - só workflow_dispatch (nunca agendado);
+#   - só colaborador com permissão dispara;
+#   - a Management API recebe o SQL como texto, sem senha de banco no workflow.
+name: Aplica migrations no banco
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrations:
+        description: 'Arquivos (ex.: 20261015200000_chamados.sql) — vazio = todas as pendentes'
+        required: false
+        default: ''
+      confirmar:
+        description: 'Escreva "producao" para confirmar (muda o banco de produção)'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  aplicar:
+    name: aplica SQL no Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Confirmação
+        run: |
+          if [ "${{ inputs.confirmar }}" != "producao" ]; then
+            echo "::error::Confirmação ausente — informe 'producao' no input confirmar."
+            exit 1
+          fi
+
+      - name: Aplica as migrations pendentes (Management API)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          MIGRATIONS: ${{ inputs.migrations }}
+        run: bash scripts/aplicar-migrations.sh

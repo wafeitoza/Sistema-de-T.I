@@ -13,7 +13,14 @@
 # usa alcança o endpoint /database/query — mesma credencial, sem segredo novo.
 #
 # Idempotência: o histórico vem de `supabase_migrations.schema_migrations`
-# (a mesma tabela que o CLI do Supabase usa); o que já rodou não roda de novo.
+# (a mesma tabela que o CLI do Supabase usa). Atenção ao formato dela: a
+# coluna `version` guarda SÓ o timestamp (`20261006030000`) e `name` guarda
+# só o resto (`reserva_sequencias`) — por isso a comparação é pelo prefixo de
+# 14 dígitos do arquivo, nunca pelo nome inteiro (bug medido em 19/10/2026:
+# comparar o nome completo não casava com nada e o script tentou reaplicar as
+# 16 migrations; a primeira falhou por `already exists` — e foi a falha que
+# evitou dano, mas por sorte: create table sem if not exists).
+#
 # Entre arquivos NÃO há transação: se uma falhar no meio, as anteriores
 # permanecem aplicadas e esta fica marcada como pendente — corrija o SQL e
 # rode de novo.
@@ -54,33 +61,41 @@ for linha in dados:
 }
 
 # Envia um script SQL completo (múltiplos statements) como uma chamada.
+# Em caso de erro, devolve a mensagem da API (visível no log do workflow).
 executar_sql() {
-  local arquivo="$1" resposta
+  local arquivo="$1" resposta erro
   resposta=$(curl -sS -X POST "$API/database/query" \
     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
     --data "$(python3 -c 'import json,sys; print(json.dumps({"query": open(sys.argv[1]).read()}))' "$arquivo")")
-  if printf '%s' "$resposta" | python3 -c '
+  if erro=$(printf '%s' "$resposta" | python3 -c '
 import json, sys
 bruto = sys.stdin.read()
 try:
     dados = json.loads(bruto)
 except Exception:
-    print("resposta não-JSON: " + bruto[:300], file=sys.stderr); sys.exit(1)
+    print("resposta não-JSON: " + bruto[:300]); sys.exit(1)
 if isinstance(dados, dict) and dados.get("message"):
-    print("FALHOU: " + dados["message"], file=sys.stderr); sys.exit(1)
-' 2>/dev/null; then
+    print(dados["message"]); sys.exit(1)
+'); then
     echo "  aplicada ✅"
   else
-    echo "  FALHOU ❌" >&2
+    echo "  FALHOU ❌  ${erro}" >&2
     return 1
   fi
 }
 
-echo "== Histórico de migrations no banco remoto =="
-aplicadas=$(consultar_valor "select name from supabase_migrations.schema_migrations order by name" || true)
+echo "== Histórico de migrations no banco remoto (versions) =="
+aplicadas=$(consultar_valor "select version from supabase_migrations.schema_migrations order by version" || true)
 echo "$aplicadas" | sed 's/^/  ✓ /'
 
-# seleciona o que vai rodar
+# seleciona o que vai rodar — comparação pelo prefixo de 14 dígitos (version)
+pendente() {
+  local nome="$1" versao
+  versao=$(printf '%s' "$nome" | grep -o '^[0-9]\{14\}' || true)
+  [ -n "$versao" ] || return 0                    # sem timestamp = roda sempre? não: exige formato
+  ! grep -qx "$versao" <<< "$aplicadas"
+}
+
 selecionados=()
 if [ -n "${MIGRATIONS:-}" ]; then
   IFS=',' read -ra pedidos <<< "$MIGRATIONS"
@@ -92,9 +107,12 @@ if [ -n "${MIGRATIONS:-}" ]; then
 else
   for f in "$DIR"/*.sql; do
     nome=$(basename "$f")
-    if ! grep -qx "$nome" <<< "$aplicadas"; then
-      selecionados+=("$nome")
-    fi
+    case "$nome" in
+      [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*)
+        if pendente "$nome"; then selecionados+=("$nome"); fi ;;
+      *)
+        echo "  ⚠ ignorado (sem timestamp no início): $nome" >&2 ;;
+    esac
   done
 fi
 
@@ -110,4 +128,4 @@ for nome in "${selecionados[@]}"; do
 done
 
 echo "== Concluído. Histórico atualizado: =="
-consultar_valor "select name from supabase_migrations.schema_migrations order by name" | sed 's/^/  ✓ /'
+consultar_valor "select version from supabase_migrations.schema_migrations order by version" | sed 's/^/  ✓ /'

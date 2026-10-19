@@ -90,7 +90,15 @@ function textoDaMensagem(payload, profundidade = 0) {
 /** Gerador de ids na mesma forma do app (`CHM-2026-000001`), em bloco. */
 export function geradorIds(cfg, prefixo) {
   const ano = new Date().getFullYear()
-  let proximo = 0
+  // O 1 inicial é proposital (bug medido em 19/10/2026): começando em 0 com
+  // limite 0, a condição `proximo > limite` era falsa na PRIMEIRA chamada — o
+  // gerador emitia `-000000` sem reservar bloco. Naquela sincronização o
+  // primeiro chamado nasceu `CHM-2026-000000`; e, com ele já existindo, a
+  // primeira chamada de toda sincronização seguinte voltaria a gerar 000000,
+  // o insert bateria em 409 e a dedupe (tolerante a 409) engoliria o e-mail
+  // inteiro — o primeiro e-mail novo de cada execução nunca viraria chamado.
+  // Com proximo=1 e limite=0 a primeira chamada SEMPRE reserva bloco.
+  let proximo = 1
   let limite = 0
   return async () => {
     if (proximo > limite) {

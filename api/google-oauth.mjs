@@ -64,10 +64,14 @@ function urlDeAutorizacao(google, state) {
     response_type: 'code',
     scope: ESCOPOS_GMAIL,
     state,
-    // sem `prompt=consent`: num app publicado o Google reaproveita o
-    // consentimento dado antes; o `access_type=offline` é o que garante o
-    // refresh token na primeira vez.
+    // `prompt=consent` + `access_type=offline` é o que garante o refresh
+    // token: sem o prompt, o Google pode reaproveitar o consentimento dado
+    // antes e devolver SEM refresh_token — a conexão morreria na primeira
+    // troca de access. E como o app está em teste (token vence em ~7 dias),
+    // reconectar vira rotina; forçar o consentimento garante token novo em
+    // toda reconexão.
     access_type: 'offline',
+    prompt: 'consent',
     include_granted_scopes: 'true',
   })
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`
@@ -146,7 +150,28 @@ export default async function handler(req, res) {
       return res.redirect(302, '/chamados?gmail=erro')
     }
 
-    const gravado = await gravarIntegracao(cfg, google, payload.email, tokens.refresh_token, tokens.scope)
+    // Qual caixa autorizou de verdade. O `state` só sabe quem clicou no
+    // sistema (william@empresa.com) — a conta Google pode ser outra, e é:
+    // a caixa pessoal de trabalho de quem administra conecta a própria
+    // caixa. O perfil do Gmail é a fonte que não mente e vira `conta`: o que
+    // a tela exibe, o que o `eNossa` compara com o remetente e o From das
+    // respostas (precisa ser a própria caixa, senão o Gmail recusa o envio).
+    let conta = payload.email
+    if (tokens.access_token) {
+      try {
+        const perfil = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        })
+        if (perfil.ok) {
+          const dados = await lerJson(perfil)
+          if (dados?.emailAddress) conta = dados.emailAddress
+        }
+      } catch {
+        // Gmail inacessível: mantém o e-mail de quem conectou (sem piora)
+      }
+    }
+
+    const gravado = await gravarIntegracao(cfg, google, conta, tokens.refresh_token, tokens.scope)
     if (gravado.status >= 400) return res.redirect(302, '/chamados?gmail=erro')
 
     await auditar(cfg, {
@@ -155,8 +180,8 @@ export default async function handler(req, res) {
       acao: 'CREATE',
       registroId: 'gmail',
       resultado: 'Sucesso',
-      // o token NUNCA entra aqui; só quem conectou e os escopos concedidos
-      campos: [{ campo: 'conta', antes: null, depois: payload.email }],
+      // o token NUNCA entra aqui; só a caixa conectada e os escopos concedidos
+      campos: [{ campo: 'conta', antes: null, depois: conta }],
       mensagem: 'Caixa de e-mail conectada ao sistema',
     })
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Menu, Moon, Search, Sun } from 'lucide-react'
+import { Maximize2, Menu, Minimize2, Moon, Search, Sun } from 'lucide-react'
 import { saudacao } from '../../lib/format'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
@@ -32,12 +32,41 @@ export function Header() {
   const alternarTema = useUiStore((s) => s.alternarTema)
   const alternarSidebar = useUiStore((s) => s.alternarSidebar)
   const alternarBusca = useUiStore((s) => s.alternarBusca)
+  const telaCheia = useUiStore((s) => s.telaCheia)
+  const alternarTelaCheia = useUiStore((s) => s.alternarTelaCheia)
   const [agora, setAgora] = useState(() => new Date())
 
   useEffect(() => {
     const id = setInterval(() => setAgora(new Date()), 30_000)
     return () => clearInterval(id)
   }, [])
+
+  // Tela cheia do navegador junto com o modo da interface. Se o navegador
+  // negar (iframe, permissão), a interface mesmo assim fica em modo tela
+  // cheia — só o chrome do navegador continua visível.
+  const aoAlternarTelaCheia = () => {
+    const ativando = !telaCheia
+    alternarTelaCheia()
+    try {
+      if (ativando) {
+        void document.documentElement.requestFullscreen?.()?.catch(() => {})
+      } else if (document.fullscreenElement) {
+        void document.exitFullscreen?.()?.catch(() => {})
+      }
+    } catch {
+      /* modo interface já foi aplicado; sem tela cheia do navegador */
+    }
+  }
+
+  // ESC (ou qualquer outra saída da tela cheia do navegador) desliga o
+  // modo da interface também, para os dois nunca ficarem fora de sincronia.
+  useEffect(() => {
+    const aoSairDoNavegador = () => {
+      if (!document.fullscreenElement && telaCheia) alternarTelaCheia()
+    }
+    document.addEventListener('fullscreenchange', aoSairDoNavegador)
+    return () => document.removeEventListener('fullscreenchange', aoSairDoNavegador)
+  }, [telaCheia, alternarTelaCheia])
 
   const primeiroNome = usuario?.nome.split(' ')[0] ?? ''
 
@@ -79,6 +108,14 @@ export function Header() {
           </kbd>
         </button>
         <SinoNotificacoes />
+        <button
+          onClick={aoAlternarTelaCheia}
+          className="rounded-lg p-2 text-content-muted transition-all duration-200 hover:bg-surface-2 hover:text-content hover:shadow-md active:scale-90"
+          aria-label={telaCheia ? 'Sair da tela cheia' : 'Ativar tela cheia'}
+          title={telaCheia ? 'Sair da tela cheia (Esc)' : 'Tela cheia'}
+        >
+          {telaCheia ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </button>
         <button
           onClick={alternarTema}
           className="rounded-lg p-2 text-content-muted transition-all duration-200 hover:rotate-12 hover:bg-surface-2 hover:text-content hover:shadow-md active:scale-90"

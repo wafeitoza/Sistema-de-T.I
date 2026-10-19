@@ -18,6 +18,7 @@ export function Sidebar() {
   const alternarTema = useUiStore((s) => s.alternarTema)
   const sidebarAberta = useUiStore((s) => s.sidebarAberta)
   const alternarSidebar = useUiStore((s) => s.alternarSidebar)
+  const telaCheia = useUiStore((s) => s.telaCheia)
 
   if (!usuario) return null
   const perfil: Perfil = usuario.perfil
@@ -128,7 +129,14 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="hidden w-64 shrink-0 border-r border-line bg-surface md:block print:hidden">
+      {/* No modo tela cheia a barra recolhe no desktop; no mobile ela já é
+          oculta e o drawer continua acessível pelo botão de menu. */}
+      <aside
+        className={cn(
+          'hidden w-64 shrink-0 border-r border-line bg-surface print:hidden',
+          telaCheia ? 'md:hidden' : 'md:block',
+        )}
+      >
         <div className="sticky top-0 h-screen">{conteudo}</div>
       </aside>
 

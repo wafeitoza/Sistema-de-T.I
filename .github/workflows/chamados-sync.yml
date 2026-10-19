@@ -43,11 +43,23 @@ jobs:
           cat resposta.json; echo
 
           # "origem":"cron" só entra no corpo quando a Function aceitou o
-          # segredo e executou. Sem ele, o 401 é de segredo errado/ausente —
-          # falha visível aqui, para corrigir o secret.
+          # segredo e executou — aí o 400/401 seguinte é de estado (caixa não
+          # conectada / autorização expirou), não de configuração.
           if grep -q '"origem":"cron"' resposta.json; then
             echo "HTTP $status — sincronização processada"
-          else
-            echo "HTTP $status — a Function recusou (CRON_SECRET divergente na Vercel?)"
-            exit 1
+            exit 0
           fi
+
+          case "$status" in
+            401)
+              echo "HTTP 401 — CRON_SECRET divergente entre o secret do Actions e a Vercel"
+              ;;
+            500)
+              echo "HTTP 500 — Function sem configurar no servidor (env vars ausentes na Vercel):"
+              ;;
+            *)
+              echo "HTTP $status — a Function recusou:"
+              ;;
+          esac
+          cat resposta.json; echo
+          exit 1

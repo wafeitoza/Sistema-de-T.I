@@ -75,8 +75,9 @@ export function Header() {
       <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={alternarSidebar}
-          className="rounded-lg p-2 text-content-muted hover:bg-surface-2 hover:text-content md:hidden"
+          className="rounded-lg p-2 text-content-muted transition-all duration-200 hover:bg-surface-2 hover:text-content hover:shadow-md active:scale-90"
           aria-label="Abrir menu"
+          title="Menu"
         >
           <Menu size={18} />
         </button>

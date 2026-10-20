@@ -9,7 +9,7 @@ import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import { BuscaGlobal } from './BuscaGlobal'
 import { Header } from './Header'
-import { Sidebar } from './Sidebar'
+import { MenuNavegacao } from './MenuNavegacao'
 
 export function Layout() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -22,7 +22,7 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen bg-surface-2">
-      <Sidebar />
+      <MenuNavegacao />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
         <main className="flex-1 p-4 md:p-6">

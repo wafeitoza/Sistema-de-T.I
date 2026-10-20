@@ -5,13 +5,11 @@ import {
   ArrowRight,
   Box,
   CalendarClock,
-  History,
   LifeBuoy,
   Mail,
   Package,
   Wrench,
 } from 'lucide-react'
-import { lerColecao } from '../data/repository'
 import { Badge, BadgeStatus } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
 import { Card3D } from '../components/ui/Card3D'
@@ -27,23 +25,7 @@ import { useChamadosStore } from '../store/chamados'
 import { useEstoqueStore } from '../store/estoque'
 import { useManutencoesStore } from '../store/manutencao'
 import { useSolicitacoesStore } from '../store/solicitacoes'
-import type { Chamado, LogEntrada, StatusChamado } from '../types'
-
-const ACOES_PT: Record<string, string> = {
-  CREATE: 'Criou',
-  UPDATE: 'Atualizou',
-  DELETE: 'Removeu',
-  LOGIN: 'Entrou no sistema',
-  LOGOUT: 'Saiu do sistema',
-}
-
-const PONTO_ACAO: Record<string, string> = {
-  CREATE: 'bg-success',
-  UPDATE: 'bg-primary',
-  DELETE: 'bg-danger',
-  LOGIN: 'bg-info',
-  LOGOUT: 'bg-content-muted',
-}
+import type { Chamado, StatusChamado } from '../types'
 
 function Metrica({
   icone,
@@ -220,10 +202,6 @@ export function DashboardPage() {
   // Visualizador lê a fila no dashboard (mesmo RLS), mas não abre a rota.
   const verFilaChamados = usuario ? podeAcessarRota('/chamados', usuario.perfil) : false
 
-  // RLS da Fase D: `auditoria` só é legível por Admin/Gerente — mesma regra
-  // da rota /auditoria. Para os demais perfis o card nem aparece.
-  const verAuditoria = usuario ? podeAcessarRota('/auditoria', usuario.perfil) : false
-  const logs = verAuditoria ? lerColecao<LogEntrada>('LOG').slice(0, 7) : []
   const verSolicitacoes = usuario && podeAcessarRota('/solicitacoes', usuario.perfil)
   const edita = usuario ? podeEditar(usuario.perfil) : false
   const [dataExtenso] = useState(() => {
@@ -495,59 +473,6 @@ export function DashboardPage() {
           )}
         </Card>
       </Reveal>
-
-      {verAuditoria && (
-        <Reveal atraso={140}>
-          <Card>
-            <div className="mb-3 flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-info/15 shadow-sm">
-                <History size={16} className="text-info" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-content">Atividade recente</p>
-                <p className="text-[11px] text-content-muted">Últimas ações no sistema</p>
-              </div>
-            </div>
-            {logs.length === 0 ? (
-              <p className="text-sm text-content-muted">Nenhuma atividade registrada.</p>
-            ) : (
-              <ul className="relative space-y-1 before:absolute before:bottom-3 before:left-[13px] before:top-3 before:w-px before:bg-line">
-                {logs.map((l, idx) => (
-                  <li
-                    key={l.id}
-                    style={{ animationDelay: `${idx * 50}ms` }}
-                    className="anim-fade-up relative flex items-center gap-3 rounded-lg px-1 py-2.5 transition-colors duration-200 hover:bg-surface-2"
-                  >
-                    <span
-                      className={cn(
-                        'z-10 h-3 w-3 shrink-0 rounded-full ring-4 ring-surface',
-                        PONTO_ACAO[l.acao] ?? 'bg-content-muted',
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs">
-                        <span className="font-semibold text-content">
-                          {ACOES_PT[l.acao] ?? l.acao}
-                        </span>{' '}
-                        <span className="text-content-muted">em</span>{' '}
-                        <span className="font-medium text-content">{l.tabela}</span>
-                      </p>
-                      <p className="truncate font-mono text-[11px] text-content-muted">
-                        {l.registroId}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-right text-[11px] text-content-muted">
-                      {formatarData(l.dataHora)}
-                      <br />
-                      {l.usuario}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </Reveal>
-      )}
     </div>
   )
 }

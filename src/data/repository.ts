@@ -5,7 +5,7 @@ import {
   proximaSequenciaRemota,
   sincronizarColecao,
 } from './api'
-import { sessaoAtual } from './auth'
+import { estadoSessao, sessaoAtual } from './auth'
 import { modoSupabase } from './client'
 import { useUiStore } from '../store/ui'
 
@@ -71,13 +71,34 @@ export function gravarEspelho<T>(colecao: string, dados: T[]): void {
 
 function sincronizar(colecao: string, antes: unknown[], depois: unknown[]): void {
   void (async () => {
+    const estado = await estadoSessao()
+
     // Fase D: sem sessão o papel da requisição é `anon`, que não alcança
     // nenhuma tabela — tentar sincronizar viraria só 401 + toast de erro no
     // boot anônimo (é o que acontece quando o espelho local está vazio e o
     // store gera o seed padrão, ex.: SETORES). Nada se perde: depois do login
     // `baixarDados()` regrava o espelho com o servidor e a próxima gravação
     // volta a sincronizar normalmente.
-    if (!(await sessaoAtual())) return
+    if (estado.estado === 'anonimo') return
+
+    // Sessão "logada, mas cuja verificação falhou" (refresh token expirado/
+    // inválido): sem token válido o PostgREST responderia 401, e descartar em
+    // silêncio faria o dado sumir do servidor no próximo `baixarDados()` — o
+    // avatar que "não salvava" era isto. Em vez de fingir que gravou, avisa
+    // para o usuário entrar de novo. (Se o token ainda está dentro da validade
+    // real, o supabase-js devolve a sessão guardada e caímos no caminho normal.)
+    if (estado.estado === 'falha') {
+      console.error('[supabase] sessão indisponível ao sincronizar', colecao, estado.erro)
+      try {
+        useUiStore
+          .getState()
+          .notificar('erro', `Sessão expirada — ${colecao} não foi salvo. Entre de novo para sincronizar.`)
+      } catch {
+        // store indisponível (fora do app, ex.: teste unitário)
+      }
+      return
+    }
+
     await sincronizarColecao(colecao, antes as never, depois as never)
   })().catch((erro) => {
     console.error(`[supabase] falha ao sincronizar ${colecao}:`, erro)

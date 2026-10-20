@@ -4,10 +4,11 @@ const mocks = vi.hoisted(() => ({
   sincronizarColecao: vi.fn(),
   proximaSequenciaRemota: vi.fn(),
   sessaoAtual: vi.fn(),
+  estadoSessao: vi.fn(),
 }))
 
 vi.mock('./client', () => ({ modoSupabase: true, cliente: vi.fn() }))
-vi.mock('./auth', () => ({ sessaoAtual: mocks.sessaoAtual }))
+vi.mock('./auth', () => ({ sessaoAtual: mocks.sessaoAtual, estadoSessao: mocks.estadoSessao }))
 vi.mock('./api', () => ({
   NOMES_SEQUENCIA: ['SET', 'SOL'],
   TAMANHO_BLOCO: 50,
@@ -28,6 +29,8 @@ beforeEach(() => {
   mocks.proximaSequenciaRemota.mockReset()
   mocks.sessaoAtual.mockReset()
   mocks.sessaoAtual.mockResolvedValue({ email: 'teste@empresa.com', trocarSenha: false })
+  mocks.estadoSessao.mockReset()
+  mocks.estadoSessao.mockResolvedValue({ estado: 'ativa', email: 'teste@empresa.com', trocarSenha: false })
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const chave = localStorage.key(i)
     if (chave?.startsWith('ITSTOCK_')) localStorage.removeItem(chave)
@@ -93,7 +96,7 @@ describe('modo Supabase — espelho + sincronização', () => {
 
   it('sem sessão não sincroniza nem avisa (boot anônimo)', async () => {
     const { repository, ui } = await carregar()
-    mocks.sessaoAtual.mockResolvedValue(null)
+    mocks.estadoSessao.mockResolvedValue({ estado: 'anonimo' })
     mocks.sincronizarColecao.mockResolvedValue(undefined)
 
     repository.gravarColecao('SETORES', [{ id: '1', nome: 'TI' }])
@@ -104,6 +107,33 @@ describe('modo Supabase — espelho + sincronização', () => {
     expect(repository.lerColecao('SETORES')).toEqual([{ id: '1', nome: 'TI' }])
     expect(mocks.sincronizarColecao).not.toHaveBeenCalled()
     expect(ui.toasts).toHaveLength(0)
+  })
+
+  // Regressão do "avatar não salva": quando o refresh token expirava, o
+  // `getSession()` devolvia `{ session: null, error }` e o gate antigo
+  // (`if (!(await sessaoAtual())) return`) descartava a gravação em silêncio —
+  // o espelho local atualizava (o avatar aparecia), o servidor nunca recebia,
+  // e no próximo `baixarDados()` o dado sumia sem aviso. Agora a sessão
+  // "logada mas com verificação falhando" vira toast, não sumida.
+  it('sessão logada mas com verificação falhando avisa em vez de descartar em silêncio', async () => {
+    const { repository, ui } = await carregar()
+    mocks.estadoSessao.mockResolvedValue({ estado: 'falha', erro: new Error('refresh token inválido') })
+    mocks.sincronizarColecao.mockResolvedValue(undefined)
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    repository.gravarColecao('USUARIOS', [{ email: 'a@b.com', nome: 'A' }])
+    await vi.waitFor(() => expect(ui.toasts.length).toBeGreaterThan(0))
+
+    // o servidor não recebe nada (sem token válido), mas o usuário é avisado
+    expect(mocks.sincronizarColecao).not.toHaveBeenCalled()
+    const toast = ui.toasts[ui.toasts.length - 1]
+    expect(toast.tipo).toBe('erro')
+    expect(toast.mensagem).toContain('USUARIOS')
+    expect(toast.mensagem).toContain('Sessão expirada')
+    // o espelho local segue atualizado (a interface continua mostrando o dado)
+    expect(repository.lerColecao('USUARIOS')).toEqual([{ email: 'a@b.com', nome: 'A' }])
+    ui.removerToast(toast.id)
+    consoleSpy.mockRestore()
   })
 })
 

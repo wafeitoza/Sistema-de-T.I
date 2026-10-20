@@ -62,17 +62,52 @@ export async function entrarComSenha(email: string, senha: string): Promise<Resu
   }
 }
 
+/**
+ * Estado da sessão, distinguindo "nunca logou" de "logado mas a verificação
+ * falhou".
+ *
+ * O `getSession()` do supabase-js devolve `{ session: null, error: null }`
+ * quando simplesmente não há sessão (boot anônimo / logout), mas
+ * `{ session: null, error: AuthError }` quando o refresh token falhou e a
+ * sessão armazenada já expirou de verdade. Colapsar os dois num único `null`
+ * — como fazia `sessaoAtual()` — fazia uma gravação feita com a sessão "meio
+ * morta" ser descartada em silêncio: o espelho local atualizava (o avatar
+ * aparecia), o servidor nunca recebia nada, e no próximo `baixarDados()` o
+ * dado sumia sem nenhum aviso. Foi exatamente o sintoma do "avatar não salva".
+ */
+export type EstadoSessao =
+  | { estado: 'anonimo' }
+  | { estado: 'ativa'; email: string; trocarSenha: boolean }
+  | { estado: 'falha'; erro: unknown }
+
+export async function estadoSessao(): Promise<EstadoSessao> {
+  if (!modoSupabase) return { estado: 'anonimo' }
+  try {
+    const { data, error } = await cliente().auth.getSession()
+    const user = data.session?.user
+    if (user?.email) {
+      return {
+        estado: 'ativa',
+        email: user.email,
+        trocarSenha: Boolean(user.user_metadata?.trocar_senha),
+      }
+    }
+    // Sem sessão: se o próprio `getSession` devolveu erro, a verificação
+    // falhou (refresh token inválido/expirado) — não é o mesmo que "nunca
+    // logou", e quem decide se sincroniza precisa saber a diferença.
+    if (error) return { estado: 'falha', erro: error }
+    return { estado: 'anonimo' }
+  } catch (erro) {
+    // exceção (ex.: storage ilegível) também significa "não deu para verificar"
+    return { estado: 'falha', erro }
+  }
+}
+
 /** Sessão Supabase vigente (ou null). Usada no boot para restaurar o acesso. */
 export async function sessaoAtual(): Promise<SessaoAuth | null> {
-  if (!modoSupabase) return null
-  try {
-    const { data } = await cliente().auth.getSession()
-    const user = data.session?.user
-    if (!user?.email) return null
-    return { email: user.email, trocarSenha: Boolean(user.user_metadata?.trocar_senha) }
-  } catch {
-    return null
-  }
+  const estado = await estadoSessao()
+  if (estado.estado !== 'ativa') return null
+  return { email: estado.email, trocarSenha: estado.trocarSenha }
 }
 
 /** Troca a senha e desliga a marca de "senha provisória". */

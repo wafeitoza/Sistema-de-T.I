@@ -117,6 +117,44 @@ describe('sessaoAtual', () => {
   })
 })
 
+describe('estadoSessao', () => {
+  it('anonimo quando não há sessão nem erro (boot sem login)', async () => {
+    estado.auth.getSession.mockResolvedValue({ data: { session: null }, error: null })
+    expect(await auth.estadoSessao()).toEqual({ estado: 'anonimo' })
+  })
+
+  it('ativa quando a sessão tem e-mail', async () => {
+    estado.auth.getSession.mockResolvedValue(sessao('a@b.com', false))
+    expect(await auth.estadoSessao()).toEqual({
+      estado: 'ativa',
+      email: 'a@b.com',
+      trocarSenha: false,
+    })
+  })
+
+  // O coração do fix do "avatar não salva": o supabase-js devolve
+  // `{ session: null, error }` quando o refresh token falha e a sessão já
+  // expirou — isso NÃO é o mesmo que "nunca logou", e quem sincroniza precisa
+  // saber para avisar o usuário em vez de descartar a gravação em silêncio.
+  it('falha quando o getSession devolve erro (refresh token expirado)', async () => {
+    const erro = new Error('Invalid Refresh Token: Refresh Token Not Found')
+    estado.auth.getSession.mockResolvedValue({ data: { session: null }, error: erro })
+    expect(await auth.estadoSessao()).toEqual({ estado: 'falha', erro })
+  })
+
+  it('falha quando getSession lança exceção (storage ilegível, rede)', async () => {
+    const erro = new Error('boom')
+    estado.auth.getSession.mockRejectedValue(erro)
+    expect(await auth.estadoSessao()).toEqual({ estado: 'falha', erro })
+  })
+
+  it('anonimo no modo local (nenhuma função passa do navegador)', async () => {
+    estado.modo = false
+    expect(await auth.estadoSessao()).toEqual({ estado: 'anonimo' })
+    expect(estado.auth.getSession).not.toHaveBeenCalled()
+  })
+})
+
 describe('trocarSenhaSupabase', () => {
   it('recusa senha curta sem chamar o servidor', async () => {
     expect(await auth.trocarSenhaSupabase('123')).toEqual({

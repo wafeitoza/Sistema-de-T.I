@@ -96,7 +96,7 @@ export function SinoNotificacoes() {
       </button>
 
       {aberto && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-line bg-surface shadow-2xl">
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-line bg-card shadow-2xl">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <p className="text-sm font-semibold text-content">Notificações</p>
             {naoLidas.length > 0 && (

@@ -182,7 +182,7 @@ export function AprovacaoPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-2 p-4">
-      <div className="w-full max-w-xl rounded-xl border border-line bg-surface p-6 shadow-sm">
+      <div className="w-full max-w-xl rounded-xl border border-line bg-card p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2 text-xs text-content-muted">
           <CheckCircle2 size={14} className="text-primary" />
           Aprovação por link seguro · válido por 7 dias
@@ -290,7 +290,7 @@ function MensagemCentral({
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-2 p-4">
-      <div className="w-full max-w-md rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
+      <div className="w-full max-w-md rounded-xl border border-line bg-card p-8 text-center shadow-sm">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-surface-3">
           {icone}
         </div>

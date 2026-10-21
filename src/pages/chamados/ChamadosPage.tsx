@@ -158,7 +158,7 @@ export function ChamadosPage() {
       </div>
 
       {operar && (
-        <section className="rounded-xl border border-line bg-surface p-4">
+        <section className="rounded-xl border border-line bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="flex items-center gap-2 text-sm font-semibold">

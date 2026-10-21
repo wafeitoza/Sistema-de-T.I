@@ -14,7 +14,7 @@ export function Resumo({
   icone?: ReactNode
 }) {
   return (
-    <Card3D className="rounded-xl border border-line bg-surface p-4 shadow-card transition-shadow duration-300 hover:border-primary/30 hover:shadow-card-hover">
+    <Card3D className="rounded-xl border border-line bg-card p-4 shadow-card transition-shadow duration-300 hover:border-primary/30 hover:shadow-card-hover">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium text-content-muted">{titulo}</p>
         {icone}

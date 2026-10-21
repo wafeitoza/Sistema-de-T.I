@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, Estado> {
 
     return (
       <div className="grid min-h-screen place-items-center bg-surface-2 px-4">
-        <div className="w-full max-w-md rounded-xl border border-line bg-surface p-6 text-center shadow-card">
+        <div className="w-full max-w-md rounded-xl border border-line bg-card p-6 text-center shadow-card">
           <div className="anim-float mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-danger/15 to-primary/15">
             <AlertTriangle size={22} className="text-danger" />
           </div>

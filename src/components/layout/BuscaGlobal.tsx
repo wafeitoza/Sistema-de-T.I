@@ -157,7 +157,7 @@ export function BuscaGlobal() {
       role="presentation"
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-xl border border-line bg-card shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Busca global"

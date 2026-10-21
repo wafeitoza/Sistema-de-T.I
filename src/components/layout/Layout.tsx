@@ -138,7 +138,7 @@ function OutletContent() {
 
 function AcessoNegado({ perfil }: { perfil: string }) {
   return (
-    <div className="anim-bounce-in mx-auto mt-16 flex max-w-md flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-8 text-center shadow-card">
+    <div className="anim-bounce-in mx-auto mt-16 flex max-w-md flex-col items-center gap-3 rounded-2xl border border-line bg-card p-8 text-center shadow-card">
       <div className="anim-pulse-ring flex h-12 w-12 items-center justify-center rounded-full bg-danger/15">
         <ShieldAlert size={22} className="text-danger" />
       </div>

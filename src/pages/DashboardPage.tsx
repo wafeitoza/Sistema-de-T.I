@@ -53,7 +53,7 @@ function Metrica({
   }, [pct])
 
   return (
-    <Card3D className="rounded-xl border border-line bg-surface p-5 shadow-card transition-all duration-300 hover:border-primary/30 hover:shadow-card-hover">
+    <Card3D className="rounded-xl border border-line bg-card p-5 shadow-card transition-all duration-300 hover:border-primary/30 hover:shadow-card-hover">
       <div className="flex items-start gap-4">
         <div
           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 ${tom}`}

@@ -53,7 +53,7 @@ export function MenuNavegacao() {
         onClick={alternar}
         aria-hidden
       />
-      <div className="anim-scale-in relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-surface shadow-2xl">
+      <div className="anim-scale-in relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-card shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <div className="group flex items-center gap-2.5">
             {/* Mesmo avatar do favicon e da tela de login, para as três

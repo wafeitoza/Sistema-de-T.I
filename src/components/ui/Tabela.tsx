@@ -5,7 +5,7 @@ import type { Ordenacao } from '../../lib/tabela'
 
 export function Tabela({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+    <div className="overflow-x-auto rounded-xl border border-line bg-card">
       <table className={cn('tabela-animada w-full text-left text-sm', className)}>{children}</table>
     </div>
   )

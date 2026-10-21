@@ -158,11 +158,11 @@ export function Relogio() {
                 <Ponteiro
                   angulo={anguloSegundo}
                   comprimento={36}
-                  cor="#007aff"
+                  cor="#5b3fe0"
                   largura={1.8}
                   cauda={7}
                 />
-                <circle cx="50" cy="50" r="3.5" fill="#007aff" />
+                <circle cx="50" cy="50" r="3.5" fill="#5b3fe0" />
                 <circle cx="50" cy="50" r="1.4" className="fill-surface" />
               </svg>
 

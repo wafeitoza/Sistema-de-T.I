@@ -2,44 +2,59 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Identidade visual — Tenzen. Fundos quentes (bege no claro / quase-preto no
+   escuro), tinta "off-white" e um acento roxo que vira lavanda no escuro. O
+   gradiente "prism" (roxo→azul→ciano→âmbar) é a assinatura cromática. */
 :root {
   --surface: #ffffff;
-  --surface-2: #f6f8fb;
-  --surface-3: #eef1f6;
-  --content: #0f172a;
-  --content-muted: #64748b;
-  --border: #e2e8f0;
+  --surface-2: #f4f3ef;
+  --surface-3: #eae8e3;
+  --content: #0c0c0d;
+  --content-muted: #6b6964;
+  --border: #e4e0d8;
+  /* acento por tema (o Tenzen usa #5b3fe0 no claro, #9b86ff no escuro) */
+  --primary: #5b3fe0;
+  --primary-light: #ece7ff;
+  --primary-dark: #452fb0;
+  --prism:
+    linear-gradient(90deg, #5a3ad9 0%, #7b62d9 28%, #4f78d9 54%, #3ea9d1 86%, #d99a5c 100%);
+  /* sombras quentes (mistura de #282014, um marrom-terroso, como no Tenzen) */
   --sombra-card:
-    0 1px 2px rgb(15 23 42 / 0.04), 0 10px 30px -18px rgb(15 23 42 / 0.18);
+    0 1px 2px rgb(40 32 20 / 0.04), 0 18px 48px -22px rgb(40 32 20 / 0.18);
   --sombra-card-hover:
-    0 2px 4px rgb(15 23 42 / 0.06), 0 22px 45px -20px rgb(0 122 255 / 0.35);
+    0 1px 2px rgb(40 32 20 / 0.06), 0 24px 50px -22px rgb(91 63 224 / 0.28);
 }
 
-/* Modo noturno — preto piano (corpo em preto puro, painéis levemente
-   elevados e brilho sutil na borda superior, como um lacaado). */
+/* Modo noturno — grafite quente (nunca preto puro), painéis levemente
+   elevados e brilho sutil na borda superior. */
 .dark {
-  --surface: #0d0d0d;
-  --surface-2: #000000;
-  --surface-3: #1a1a1a;
-  --content: #f5f5f5;
-  --content-muted: #a3a3a3;
-  --border: #262626;
+  --surface: #101012;
+  --surface-2: #070708;
+  --surface-3: #202024;
+  --content: #f3f2ef;
+  --content-muted: #8b8a85;
+  --border: #232327;
+  --primary: #9b86ff;
+  --primary-light: #1e1836;
+  --primary-dark: #7a5cff;
+  --prism:
+    linear-gradient(90deg, #7a5cff 0%, #9b86ff 28%, #6f9bff 54%, #63d6ff 86%, #ffc58a 100%);
   --sombra-card:
-    inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 16px 36px -24px rgb(0 0 0 / 0.95);
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 16px 40px -24px rgb(0 0 0 / 0.9);
   --sombra-card-hover:
-    inset 0 1px 0 rgb(255 255 255 / 0.08),
-    0 28px 54px -26px rgb(0 122 255 / 0.5);
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 28px 60px -26px rgb(155 134 255 / 0.32);
 }
 
 @theme inline {
-  --color-primary: #007aff;
-  --color-primary-light: #e8f4ff;
-  --color-primary-dark: #0051d5;
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
   --color-success: #34c759;
   --color-warning: #ff9500;
   --color-danger: #ff3b30;
-  --color-info: #5ac8fa;
+  --color-info: #4a9fe8;
 
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -49,14 +64,19 @@
   --color-line: var(--border);
 
   --font-sans:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   --font-mono:
-    'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    'Geist Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  /* Arredondamento generoso do Tenzen (14px no xl, 18px no 2xl, 22px no 3xl). */
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.375rem;
 
   --shadow-card: var(--sombra-card);
   --shadow-card-hover: var(--sombra-card-hover);
-  --shadow-glow: 0 8px 30px -8px rgb(0 122 255 / 0.45);
+  --shadow-glow: 0 8px 30px -8px rgb(155 134 255 / 0.45);
 }
 
 @layer base {
@@ -72,15 +92,15 @@
     color: var(--content);
     background-color: var(--surface-2);
     background-image:
-      radial-gradient(70rem 45rem at 115% -15%, rgb(0 122 255 / 0.08), transparent 60%),
-      radial-gradient(55rem 40rem at -25% 115%, rgb(90 200 250 / 0.08), transparent 60%);
+      radial-gradient(70rem 45rem at 115% -15%, rgb(91 63 224 / 0.07), transparent 60%),
+      radial-gradient(55rem 40rem at -25% 115%, rgb(62 169 209 / 0.06), transparent 60%);
     background-attachment: fixed;
   }
 
   .dark body {
     background-image:
-      radial-gradient(70rem 45rem at 115% -15%, rgb(0 122 255 / 0.14), transparent 60%),
-      radial-gradient(55rem 40rem at -25% 115%, rgb(90 200 250 / 0.1), transparent 60%);
+      radial-gradient(70rem 45rem at 115% -15%, rgb(155 134 255 / 0.12), transparent 60%),
+      radial-gradient(55rem 40rem at -25% 115%, rgb(99 214 255 / 0.09), transparent 60%);
   }
 
   * {
@@ -88,7 +108,11 @@
   }
 
   ::selection {
-    background: rgb(0 122 255 / 0.22);
+    background: rgb(91 63 224 / 0.22);
+  }
+
+  .dark ::selection {
+    background: rgb(155 134 255 / 0.3);
   }
 
   ::-webkit-scrollbar {
@@ -195,13 +219,13 @@
 
   @keyframes pulse-ring {
     0% {
-      box-shadow: 0 0 0 0 rgb(0 122 255 / 0.35);
+      box-shadow: 0 0 0 0 rgb(155 134 255 / 0.35);
     }
     70% {
-      box-shadow: 0 0 0 14px rgb(0 122 255 / 0);
+      box-shadow: 0 0 0 14px rgb(155 134 255 / 0);
     }
     100% {
-      box-shadow: 0 0 0 0 rgb(0 122 255 / 0);
+      box-shadow: 0 0 0 0 rgb(155 134 255 / 0);
     }
   }
 
@@ -315,9 +339,9 @@
     -webkit-backdrop-filter: blur(14px) saturate(1.5);
   }
 
-  /* ---------- Texto com gradiente ---------- */
+  /* ---------- Texto com gradiente (assinatura "prism" do Tenzen) ---------- */
   .gradient-text {
-    background: linear-gradient(120deg, #007aff 0%, #5ac8fa 55%, #34c759 130%);
+    background: var(--prism);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -355,10 +379,10 @@
     inset: -18%;
     filter: blur(30px);
     background:
-      radial-gradient(38% 46% at 22% 28%, rgb(0 122 255 / 0.2), transparent 65%),
-      radial-gradient(42% 50% at 78% 72%, rgb(52 199 89 / 0.15), transparent 65%),
-      radial-gradient(34% 42% at 64% 16%, rgb(255 149 0 / 0.13), transparent 65%),
-      radial-gradient(30% 40% at 28% 78%, rgb(90 200 250 / 0.16), transparent 65%);
+      radial-gradient(38% 46% at 22% 28%, rgb(122 92 255 / 0.22), transparent 65%),
+      radial-gradient(42% 50% at 78% 72%, rgb(111 155 255 / 0.18), transparent 65%),
+      radial-gradient(34% 42% at 64% 16%, rgb(255 197 138 / 0.15), transparent 65%),
+      radial-gradient(30% 40% at 28% 78%, rgb(99 214 255 / 0.17), transparent 65%);
     animation: aurora 22s ease-in-out infinite alternate;
   }
 
@@ -448,11 +472,14 @@
   :root,
   .dark {
     --surface: #ffffff;
-    --surface-2: #f6f8fb;
-    --surface-3: #eef1f6;
-    --content: #0f172a;
-    --content-muted: #64748b;
-    --border: #e2e8f0;
+    --surface-2: #f4f3ef;
+    --surface-3: #eae8e3;
+    --content: #0c0c0d;
+    --content-muted: #6b6964;
+    --border: #e4e0d8;
+    --primary: #5b3fe0;
+    --primary-light: #ece7ff;
+    --primary-dark: #452fb0;
     --sombra-card: none;
     --sombra-card-hover: none;
   }

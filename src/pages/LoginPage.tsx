@@ -83,7 +83,7 @@ export function LoginPage() {
             height: 440,
             top: '-10rem',
             left: '-7rem',
-            background: 'linear-gradient(135deg, #007aff, #5ac8fa)',
+            background: 'linear-gradient(135deg, #7a5cff, #6f9bff)',
           }}
         />
         <div
@@ -93,7 +93,7 @@ export function LoginPage() {
             height: 380,
             bottom: '-8rem',
             right: '-6rem',
-            background: 'linear-gradient(135deg, #34c759, #5ac8fa)',
+            background: 'linear-gradient(135deg, #63d6ff, #6f9bff)',
             animationDelay: '-7s',
           }}
         />
@@ -104,7 +104,7 @@ export function LoginPage() {
             height: 280,
             top: '42%',
             right: '14%',
-            background: 'linear-gradient(135deg, #ff9500, #ff3b30)',
+            background: 'linear-gradient(135deg, #ffc58a, #d99a5c)',
             animationDelay: '-11s',
             opacity: 0.25,
           }}

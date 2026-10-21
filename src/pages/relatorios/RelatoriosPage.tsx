@@ -34,11 +34,11 @@ const CORES_STATUS: Record<string, string> = {
   Descartado: '#ff3b30',
 }
 const CORES = [
-  '#007aff',
+  '#5b3fe0',
   '#ff9500',
   '#34c759',
   '#ff3b30',
-  '#5ac8fa',
+  '#4a9fe8',
   '#af52de',
   '#ffcc00',
   '#8e8e93',
@@ -299,8 +299,8 @@ export function RelatoriosPage() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} height={50} textAnchor="end" />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={30} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(0 122 255 / 0.08)' }} />
-              <Bar dataKey="value" fill="#007aff" radius={[6, 6, 0, 0]} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(91 63 224 / 0.08)' }} />
+              <Bar dataKey="value" fill="#5b3fe0" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Grafico>
@@ -310,8 +310,8 @@ export function RelatoriosPage() {
             <AreaChart data={aquisicoes}>
               <defs>
                 <linearGradient id="gradAquis" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#007aff" stopOpacity={0.45} />
-                  <stop offset="100%" stopColor="#007aff" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="#5b3fe0" stopOpacity={0.45} />
+                  <stop offset="100%" stopColor="#5b3fe0" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -322,7 +322,7 @@ export function RelatoriosPage() {
                 type="monotone"
                 dataKey="qtd"
                 name="Aquisições"
-                stroke="#007aff"
+                stroke="#5b3fe0"
                 strokeWidth={2}
                 fill="url(#gradAquis)"
               />
@@ -336,7 +336,7 @@ export function RelatoriosPage() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={30} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(0 122 255 / 0.08)' }} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(91 63 224 / 0.08)' }} />
               <Bar dataKey="value" name="Manutenções" radius={[6, 6, 0, 0]}>
                 {manutencoesPorTipo.map((_, i) => (
                   <Cell key={i} fill={CORES[i % CORES.length]} />
@@ -352,7 +352,7 @@ export function RelatoriosPage() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 11 }} interval={0} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={30} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(0 122 255 / 0.08)' }} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(91 63 224 / 0.08)' }} />
               <Legend />
               <Bar dataKey="Entradas" fill="#34c759" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Saídas" fill="#ff3b30" radius={[4, 4, 0, 0]} />
@@ -366,7 +366,7 @@ export function RelatoriosPage() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} height={50} textAnchor="end" />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={30} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(0 122 255 / 0.08)' }} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(91 63 224 / 0.08)' }} />
               <Bar dataKey="value" name="Itens" radius={[6, 6, 0, 0]}>
                 {estoquePorCategoria.map((_, i) => (
                   <Cell key={i} fill={CORES[(i + 3) % CORES.length]} />

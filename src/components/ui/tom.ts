@@ -1,10 +1,10 @@
 export type Tom = 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'neutral'
 
 export const TONS: Record<Tom, string> = {
-  success: 'bg-success/15 text-success',
-  warning: 'bg-warning/15 text-warning',
-  danger: 'bg-danger/15 text-danger',
-  info: 'bg-info/15 text-info',
+  success: 'bg-success/15 text-success-text',
+  warning: 'bg-warning/15 text-warning-text',
+  danger: 'bg-danger/15 text-danger-text',
+  info: 'bg-info/15 text-info-text',
   primary: 'bg-primary/15 text-primary',
   neutral: 'bg-surface-3 text-content-muted',
 }

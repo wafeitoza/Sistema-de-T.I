@@ -254,7 +254,7 @@ export function DashboardPage() {
             {edita && (
               <Link
                 to="/ativos"
-                className="flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-bold text-primary shadow-lg shadow-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 active:scale-95"
+                className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-primary shadow-lg shadow-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 active:scale-95"
               >
                 Gerenciar ativos <ArrowRight size={15} />
               </Link>

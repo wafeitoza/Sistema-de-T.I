@@ -131,7 +131,7 @@ export function EmprestimosPage() {
           onClick={() => setFiltro('')}
           className={`rounded-full px-3 py-1.5 text-xs font-medium ${
             filtro === ''
-              ? 'bg-primary text-white'
+              ? 'bg-surface-3 text-content'
               : 'border border-line bg-surface text-content-muted'
           }`}
         >
@@ -143,7 +143,7 @@ export function EmprestimosPage() {
             onClick={() => setFiltro(f)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium ${
               filtro === f
-                ? 'bg-primary text-white'
+                ? 'bg-surface-3 text-content'
                 : 'border border-line bg-surface text-content-muted'
             }`}
           >

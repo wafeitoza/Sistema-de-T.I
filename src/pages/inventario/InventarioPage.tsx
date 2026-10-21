@@ -207,7 +207,7 @@ export function InventarioPage() {
             className={cn(
               'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
               aba === t.id
-                ? 'bg-primary text-white'
+                ? 'bg-surface-3 text-content'
                 : 'text-content-muted hover:bg-surface-2 hover:text-content',
             )}
           >

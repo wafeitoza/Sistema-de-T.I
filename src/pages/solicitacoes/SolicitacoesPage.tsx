@@ -130,7 +130,7 @@ export function SolicitacoesPage() {
             onClick={() => setAba(a)}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               aba === a
-                ? 'bg-primary text-white'
+                ? 'bg-surface-3 text-content'
                 : 'border border-line bg-surface text-content-muted hover:text-content'
             }`}
           >

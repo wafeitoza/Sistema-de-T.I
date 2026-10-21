@@ -15,10 +15,10 @@ import type { Usuario } from '../types'
 import logo from '../assets/logo.png'
 
 const CORES_PERFIL: Record<string, string> = {
-  Admin: 'bg-danger/15 text-danger',
-  Gerente: 'bg-warning/15 text-warning',
+  Admin: 'bg-danger/15 text-danger-text',
+  Gerente: 'bg-warning/15 text-warning-text',
   Técnico: 'bg-primary/15 text-primary',
-  Visualizador: 'bg-info/15 text-info',
+  Visualizador: 'bg-info/15 text-info-text',
 }
 
 const SEM_PARALLAX =
@@ -204,7 +204,7 @@ export function LoginPage() {
                 <button
                   type="submit"
                   disabled={enviando}
-                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-full bg-action px-4 py-2.5 text-sm font-semibold text-action-text transition-all hover:bg-action-hover hover:shadow-lg hover:shadow-black/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {enviando ? 'Entrando…' : 'Entrar'}
                 </button>

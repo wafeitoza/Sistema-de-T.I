@@ -88,7 +88,7 @@ export function MenuNavegacao() {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-4 pb-4">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           {SECOES_NAV.map((secao) => {
             const itens = ROTAS_NAVEGACAO.filter(
               (l) => l.secao === secao && podeAcessarRota(l.para, perfil),

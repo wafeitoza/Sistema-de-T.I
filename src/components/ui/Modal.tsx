@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 
@@ -23,7 +24,7 @@ export function Modal({ aberto, aoFechar, titulo, children, rodape, largo }: Mod
 
   if (!aberto) return null
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -56,6 +57,7 @@ export function Modal({ aberto, aoFechar, titulo, children, rodape, largo }: Mod
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

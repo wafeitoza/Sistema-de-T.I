@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   ExternalLink,
   Inbox,
@@ -299,14 +300,14 @@ export function ChamadosPage() {
               'hidden w-44 lg:table-cell',
               'hidden w-28 xl:table-cell',
               'w-44',
-              'w-24',
+              'w-16',
             ]}
             ord={ord}
             aoOrdenar={ordenar}
           />
           <tbody>
             {visiveis.map((c) => (
-              <Linha key={c.id}>
+              <Linha key={c.id} onClick={() => setAberto(c)}>
                 <Celula className="hidden whitespace-nowrap font-mono text-xs font-semibold md:table-cell">
                   {c.id}
                 </Celula>
@@ -343,10 +344,18 @@ export function ChamadosPage() {
                 <Celula>
                   <BadgeStatus status={c.status} />
                 </Celula>
-                <Celula>
-                  <Botao tamanho="sm" variante="fantasma" onClick={() => setAberto(c)}>
-                    Abrir
-                  </Botao>
+                <Celula className="text-right">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAberto(c)
+                    }}
+                    aria-label={`Abrir o chamado ${c.id}`}
+                    className="rounded-full p-1.5 text-content-muted transition-colors hover:bg-surface-2 hover:text-content"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </Celula>
               </Linha>
             ))}

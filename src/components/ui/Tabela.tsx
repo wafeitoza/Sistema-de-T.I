@@ -82,9 +82,21 @@ export function Celula({
   )
 }
 
-export function Linha({ children }: { children: ReactNode }) {
+export function Linha({
+  children,
+  onClick,
+}: {
+  children: ReactNode
+  onClick?: () => void
+}) {
   return (
-    <tr className="border-b border-line last:border-b-0 hover:bg-surface-2/60">
+    <tr
+      className={cn(
+        'border-b border-line last:border-b-0 hover:bg-surface-2/60',
+        onClick && 'cursor-pointer',
+      )}
+      onClick={onClick}
+    >
       {children}
     </tr>
   )

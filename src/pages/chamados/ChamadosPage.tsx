@@ -140,6 +140,13 @@ export function ChamadosPage() {
   const aguardando = chamados.filter((c) => c.status === 'Aguardando usuário')
   const resolvidos = chamados.filter((c) => c.status === 'Resolvido')
 
+  const resumos = [
+    { titulo: 'Abertos', curto: 'Abertos', valor: abertos.length, destaque: abertos.length > 0, icone: <Inbox size={16} /> },
+    { titulo: 'Em atendimento', curto: 'Em atend.', valor: emAtendimento.length, destaque: false, icone: <LifeBuoy size={16} /> },
+    { titulo: 'Aguardando usuário', curto: 'Aguard.', valor: aguardando.length, destaque: false, icone: <Mail size={16} /> },
+    { titulo: 'Resolvidos', curto: 'Resolvidos', valor: resolvidos.length, destaque: false, icone: <CheckCircle2 size={16} /> },
+  ]
+
   return (
     <div className="space-y-5">
       <TituloSecao
@@ -154,11 +161,33 @@ export function ChamadosPage() {
         Chamados
       </TituloSecao>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Resumo titulo="Abertos" valor={abertos.length} destaque={abertos.length > 0} icone={<Inbox size={16} />} />
-        <Resumo titulo="Em atendimento" valor={emAtendimento.length} icone={<LifeBuoy size={16} />} />
-        <Resumo titulo="Aguardando usuário" valor={aguardando.length} icone={<Mail size={16} />} />
-        <Resumo titulo="Resolvidos" valor={resolvidos.length} icone={<CheckCircle2 size={16} />} />
+      {/* Celular: faixa compacta em uma linha */}
+      <div className="grid grid-cols-4 gap-2 sm:hidden">
+        {resumos.map((r) => (
+          <div key={r.titulo} className="rounded-lg border border-line bg-card px-2 py-2 text-center">
+            <p
+              className={`num text-lg font-extrabold leading-none ${
+                r.destaque ? 'text-danger' : 'text-content'
+              }`}
+            >
+              {r.valor}
+            </p>
+            <p className="mt-1 truncate text-[10px] font-medium text-content-muted">{r.curto}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Telas maiores: cards completos */}
+      <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        {resumos.map((r) => (
+          <Resumo
+            key={r.titulo}
+            titulo={r.titulo}
+            valor={r.valor}
+            destaque={r.destaque}
+            icone={r.icone}
+          />
+        ))}
       </div>
 
       {operar && (

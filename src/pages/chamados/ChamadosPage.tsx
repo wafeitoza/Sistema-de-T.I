@@ -273,29 +273,59 @@ export function ChamadosPage() {
           }
         />
       ) : (
-        <Tabela>
+        <Tabela className="table-fixed">
           <CabecalhoTabela
             colunas={['ID', 'Assunto', 'Solicitante', 'Prioridade', 'Responsável', 'Aberto em', 'Status', '']}
             chaves={['id', 'assunto', 'solicitante', 'prioridade', 'atribuidoA', 'criadoEm', 'status', null]}
+            classes={[
+              'hidden w-40 md:table-cell',
+              'w-auto',
+              'hidden w-44 2xl:table-cell',
+              'hidden w-28 sm:table-cell',
+              'hidden w-44 lg:table-cell',
+              'hidden w-28 xl:table-cell',
+              'w-44',
+              'w-24',
+            ]}
             ord={ord}
             aoOrdenar={ordenar}
           />
           <tbody>
             {visiveis.map((c) => (
               <Linha key={c.id}>
-                <Celula className="whitespace-nowrap font-mono text-xs font-semibold">{c.id}</Celula>
-                <Celula>
-                  <p className="text-sm font-medium">{c.assunto}</p>
-                  {c.origem === 'E-mail' && (
-                    <p className="text-xs text-content-muted">veio do e-mail</p>
-                  )}
+                <Celula className="hidden whitespace-nowrap font-mono text-xs font-semibold md:table-cell">
+                  {c.id}
                 </Celula>
-                <Celula className="text-sm">{c.solicitante}</Celula>
                 <Celula>
+                  <p className="truncate text-sm font-medium" title={c.assunto}>
+                    {c.assunto}
+                  </p>
+                  <p className="truncate text-xs text-content-muted">
+                    <span className="2xl:hidden">{c.solicitante}</span>
+                    {c.origem === 'E-mail' && (
+                      <span>
+                        <span className="2xl:hidden"> · </span>
+                        veio do e-mail
+                      </span>
+                    )}
+                  </p>
+                </Celula>
+                <Celula className="hidden text-sm 2xl:table-cell">
+                  <span className="block truncate" title={c.solicitante}>
+                    {c.solicitante}
+                  </span>
+                </Celula>
+                <Celula className="hidden sm:table-cell">
                   <Badge tom={tomPrioridade(c.prioridade)}>{c.prioridade}</Badge>
                 </Celula>
-                <Celula className="text-sm">{c.atribuidoA ?? '—'}</Celula>
-                <Celula className="whitespace-nowrap text-sm">{formatarData(c.criadoEm)}</Celula>
+                <Celula className="hidden text-sm lg:table-cell">
+                  <span className="block truncate" title={c.atribuidoA ?? ''}>
+                    {c.atribuidoA ?? '—'}
+                  </span>
+                </Celula>
+                <Celula className="hidden whitespace-nowrap text-sm xl:table-cell">
+                  {formatarData(c.criadoEm)}
+                </Celula>
                 <Celula>
                   <BadgeStatus status={c.status} />
                 </Celula>

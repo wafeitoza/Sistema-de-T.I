@@ -14,11 +14,13 @@ export function Tabela({ children, className }: { children: ReactNode; className
 interface CabecalhoProps {
   colunas: string[]
   chaves?: (string | null)[]
+  /** Classe por coluna (largura, esconder em telas estreitas etc.). */
+  classes?: (string | null | undefined)[]
   ord?: Ordenacao | null
   aoOrdenar?: (chave: string) => void
 }
 
-export function CabecalhoTabela({ colunas, chaves, ord, aoOrdenar }: CabecalhoProps) {
+export function CabecalhoTabela({ colunas, chaves, classes, ord, aoOrdenar }: CabecalhoProps) {
   return (
     <thead>
       <tr className="border-b border-line bg-surface-2">
@@ -28,7 +30,10 @@ export function CabecalhoTabela({ colunas, chaves, ord, aoOrdenar }: CabecalhoPr
           return (
             <th
               key={c}
-              className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-content-muted"
+              className={cn(
+                'whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-content-muted',
+                classes?.[i],
+              )}
             >
               {aoOrdenar && chave ? (
                 <button

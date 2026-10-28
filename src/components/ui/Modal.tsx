@@ -10,9 +10,10 @@ interface ModalProps {
   children: ReactNode
   rodape?: ReactNode
   largo?: boolean
+  extraLargo?: boolean
 }
 
-export function Modal({ aberto, aoFechar, titulo, children, rodape, largo }: ModalProps) {
+export function Modal({ aberto, aoFechar, titulo, children, rodape, largo, extraLargo }: ModalProps) {
   useEffect(() => {
     if (!aberto) return
     const onKey = (e: KeyboardEvent) => {
@@ -37,7 +38,7 @@ export function Modal({ aberto, aoFechar, titulo, children, rodape, largo }: Mod
       <div
         className={cn(
           'anim-scale-in relative z-10 flex max-h-[90vh] w-full flex-col rounded-xl bg-surface shadow-2xl',
-          largo ? 'max-w-2xl' : 'max-w-lg',
+          extraLargo ? 'max-w-4xl' : largo ? 'max-w-2xl' : 'max-w-lg',
         )}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">

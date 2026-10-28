@@ -97,9 +97,10 @@ export function ChamadoDetalheModal({
   }
 
   return (
-    <Modal aberto={!!chamado} aoFechar={aoFechar} titulo={chamado.id} largo>
-      <div className="space-y-5">
-        <div>
+    <Modal aberto={!!chamado} aoFechar={aoFechar} titulo={chamado.id} extraLargo>
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_18rem] md:grid-rows-[auto_1fr]">
+        {/* Resumo do chamado */}
+        <div className="min-w-0 md:col-start-1 md:row-start-1">
           <div className="flex flex-wrap items-center gap-2">
             <BadgeStatus status={chamado.status} />
             <Badge tom="neutral">{chamado.prioridade}</Badge>
@@ -109,131 +110,145 @@ export function ChamadoDetalheModal({
           </div>
           <h3 className="mt-2 text-base font-semibold">{chamado.assunto}</h3>
           {chamado.descricao && (
-            <p className="mt-1 whitespace-pre-wrap text-sm text-content-muted">{chamado.descricao}</p>
+            <div className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg bg-surface-2 p-3 text-sm text-content-muted">
+              {chamado.descricao}
+            </div>
+          )}
+          {chamado.emailUrl && (
+            <a
+              href={chamado.emailUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            >
+              <ExternalLink size={13} /> Abrir a conversa no Gmail
+            </a>
           )}
         </div>
 
-        <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        {/* Detalhes e ações */}
+        <aside className="space-y-4 md:col-start-2 md:row-start-1 md:row-end-3 md:border-l md:border-line md:pl-5">
           <div>
-            <dt className="text-xs text-content-muted">Solicitante</dt>
-            <dd className="break-all">{chamado.solicitante}</dd>
+            <h4 className="mb-2 text-sm font-semibold">Detalhes</h4>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-content-muted">Solicitante</dt>
+                <dd className="break-all">{chamado.solicitante}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-content-muted">Responsável</dt>
+                <dd className="break-all">{chamado.atribuidoA ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-content-muted">Aberto em</dt>
+                <dd>{formatarData(chamado.criadoEm)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-content-muted">Última alteração</dt>
+                <dd>{formatarData(chamado.atualizadoEm)}</dd>
+              </div>
+            </dl>
           </div>
-          <div>
-            <dt className="text-xs text-content-muted">Responsável</dt>
-            <dd className="break-all">{chamado.atribuidoA ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-content-muted">Aberto em</dt>
-            <dd>{formatarData(chamado.criadoEm)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-content-muted">Última alteração</dt>
-            <dd>{formatarData(chamado.atualizadoEm)}</dd>
-          </div>
-        </dl>
 
-        {chamado.emailUrl && (
-          <a
-            href={chamado.emailUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-          >
-            <ExternalLink size={13} /> Abrir a conversa no Gmail
-          </a>
-        )}
-
-        {operar && !fechado && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Selecao
-              label="Responsável"
-              value={chamado.atribuidoA ?? ''}
-              onChange={(e) => {
-                const r = atribuir(chamado.id, e.target.value)
-                if (!r.ok) notificar('erro', r.erro ?? 'Não foi possível atribuir.')
-              }}
-              placeholder="Sem responsável"
-              opcoes={atendentes}
-            />
-            <Selecao
-              label="Prioridade"
-              value={chamado.prioridade}
-              onChange={(e) => {
-                const r = mudarPrioridade(chamado.id, e.target.value as never)
-                if (!r.ok) notificar('erro', r.erro ?? 'Não foi possível alterar a prioridade.')
-              }}
-              opcoes={PRIORIDADES_CHAMADO.map((p) => ({ valor: p, rotulo: p }))}
-            />
-          </div>
-        )}
-
-        {operar && (
-          <div className="flex flex-wrap gap-2">
-            {DESTINOS.filter((d) => transicaoPermitida(chamado.status, d)).map((d) => (
-              <Botao
-                key={d}
-                tamanho="sm"
-                variante={d === 'Resolvido' ? 'primario' : d === 'Cancelado' ? 'perigo' : 'secundario'}
-                onClick={() => {
-                  const r = mudarStatus(chamado.id, d)
-                  if (!r.ok) notificar('erro', r.erro ?? 'Não foi possível mudar o status.')
-                  else notificar('info', `${chamado.id} → ${d}.`)
+          {operar && !fechado && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold">Ações</h4>
+              <Selecao
+                label="Responsável"
+                value={chamado.atribuidoA ?? ''}
+                onChange={(e) => {
+                  const r = atribuir(chamado.id, e.target.value)
+                  if (!r.ok) notificar('erro', r.erro ?? 'Não foi possível atribuir.')
                 }}
-              >
-                {ROTULO_STATUS[d]}
-              </Botao>
-            ))}
-          </div>
-        )}
+                placeholder="Sem responsável"
+                opcoes={atendentes}
+              />
+              <Selecao
+                label="Prioridade"
+                value={chamado.prioridade}
+                onChange={(e) => {
+                  const r = mudarPrioridade(chamado.id, e.target.value as never)
+                  if (!r.ok) notificar('erro', r.erro ?? 'Não foi possível alterar a prioridade.')
+                }}
+                opcoes={PRIORIDADES_CHAMADO.map((p) => ({ valor: p, rotulo: p }))}
+              />
+            </div>
+          )}
 
-        <div>
-          <h4 className="mb-2 text-sm font-semibold">Conversa</h4>
-          {fio.length === 0 ? (
-            <p className="text-sm text-content-muted">
-              Nenhuma mensagem registrada. Chamados vindos do e-mail trazem o fio aqui depois da
-              sincronização.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {fio.map((m) => (
-                <li
-                  key={m.id}
-                  className={`rounded-lg border p-3 ${
-                    m.direcao === 'enviada'
-                      ? 'border-primary/30 bg-primary/5'
-                      : 'border-line bg-surface-2'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs text-content-muted">
-                    {m.direcao === 'enviada' ? <MailOpen size={13} /> : <Mail size={13} />}
-                    <span className="font-medium text-content">
-                      {m.direcao === 'enviada' ? 'Nós' : m.remetente}
-                    </span>
-                    <span>· {formatarData(m.recebidoEm)}</span>
-                  </div>
-                  {m.corpo && (
-                    <p className="mt-1.5 whitespace-pre-wrap text-sm">{m.corpo}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
+          {operar && (
+            <div>
+              <h4 className="mb-2 text-sm font-semibold">Mudar status</h4>
+              <div className="flex flex-wrap gap-2">
+                {DESTINOS.filter((d) => transicaoPermitida(chamado.status, d)).map((d) => (
+                  <Botao
+                    key={d}
+                    tamanho="sm"
+                    variante={d === 'Resolvido' ? 'primario' : d === 'Cancelado' ? 'perigo' : 'secundario'}
+                    onClick={() => {
+                      const r = mudarStatus(chamado.id, d)
+                      if (!r.ok) notificar('erro', r.erro ?? 'Não foi possível mudar o status.')
+                      else notificar('info', `${chamado.id} → ${d}.`)
+                    }}
+                  >
+                    {ROTULO_STATUS[d]}
+                  </Botao>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
+
+        {/* Conversa e resposta */}
+        <div className="min-w-0 space-y-5 md:col-start-1 md:row-start-2">
+          <div>
+            <h4 className="mb-2 text-sm font-semibold">Conversa</h4>
+            {fio.length === 0 ? (
+              <p className="text-sm text-content-muted">
+                Nenhuma mensagem registrada. Chamados vindos do e-mail trazem o fio aqui depois da
+                sincronização.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {fio.map((m) => (
+                  <li
+                    key={m.id}
+                    className={`rounded-lg border p-3 ${
+                      m.direcao === 'enviada'
+                        ? 'border-primary/30 bg-primary/5'
+                        : 'border-line bg-surface-2'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs text-content-muted">
+                      {m.direcao === 'enviada' ? <MailOpen size={13} /> : <Mail size={13} />}
+                      <span className="font-medium text-content">
+                        {m.direcao === 'enviada' ? 'Nós' : m.remetente}
+                      </span>
+                      <span>· {formatarData(m.recebidoEm)}</span>
+                    </div>
+                    {m.corpo && (
+                      <p className="mt-1.5 whitespace-pre-wrap text-sm">{m.corpo}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {operar && (
+            <div className="space-y-2 border-t border-line pt-4">
+              <AreaTexto
+                label="Responder ao solicitante"
+                value={resposta}
+                onChange={(e) => setResposta(e.target.value)}
+                rows={3}
+                placeholder={`A resposta sai pelo e-mail conectado para ${chamado.solicitante}.`}
+              />
+              <Botao tamanho="sm" disabled={enviando} onClick={enviarResposta}>
+                <Send size={14} /> {enviando ? 'Enviando…' : 'Enviar resposta'}
+              </Botao>
+            </div>
           )}
         </div>
-
-        {operar && (
-          <div className="space-y-2 border-t border-line pt-4">
-            <AreaTexto
-              label="Responder ao solicitante"
-              value={resposta}
-              onChange={(e) => setResposta(e.target.value)}
-              rows={3}
-              placeholder={`A resposta sai pelo e-mail conectado para ${chamado.solicitante}.`}
-            />
-            <Botao tamanho="sm" disabled={enviando} onClick={enviarResposta}>
-              <Send size={14} /> {enviando ? 'Enviando…' : 'Enviar resposta'}
-            </Botao>
-          </div>
-        )}
       </div>
     </Modal>
   )

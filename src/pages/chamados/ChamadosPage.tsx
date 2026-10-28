@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Inbox,
   LifeBuoy,
@@ -58,6 +60,7 @@ export function ChamadosPage() {
   const [gmail, setGmail] = useState<StatusGmail | null>(null)
   const [filtroGmail, setFiltroGmail] = useState('')
   const [sincronizando, setSincronizando] = useState(false)
+  const [integracoesAbertas, setIntegracoesAbertas] = useState(false)
   const [parametros, setParametros] = useSearchParams()
   const { ord, ordenar } = useOrdenacao('criadoEm', 'desc')
 
@@ -158,13 +161,13 @@ export function ChamadosPage() {
       </div>
 
       {operar && (
-        <section className="rounded-xl border border-line bg-card p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+        <section className="rounded-xl border border-line bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="min-w-0">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
                 <Settings2 size={15} /> Integração com o Gmail
               </h3>
-              <p className="mt-0.5 text-xs text-content-muted">
+              <p className="mt-0.5 truncate text-xs text-content-muted">
                 {gmail?.conectado
                   ? `Conectado como ${gmail.conta}${
                       gmail.ultimaSincronizacao
@@ -174,51 +177,62 @@ export function ChamadosPage() {
                   : 'Nenhuma caixa conectada. Os chamados podem ser abertos na tela normalmente.'}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {!gmail?.conectado ? (
                 <Botao tamanho="sm" onClick={aoConectar}>
                   <Mail size={14} /> Conectar Gmail
                 </Botao>
               ) : (
-                <>
-                  <Botao tamanho="sm" disabled={sincronizando} onClick={aoSincronizar}>
-                    <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
-                    {sincronizando ? 'Sincronizando…' : 'Sincronizar agora'}
+                <Botao tamanho="sm" disabled={sincronizando} onClick={aoSincronizar}>
+                  <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
+                  {sincronizando ? 'Sincronizando…' : 'Sincronizar agora'}
+                </Botao>
+              )}
+              <button
+                type="button"
+                onClick={() => setIntegracoesAbertas((v) => !v)}
+                aria-expanded={integracoesAbertas}
+                className="inline-flex h-8 items-center gap-1 rounded-full border border-line px-3 text-xs font-medium text-content-muted transition-colors hover:bg-surface-2 hover:text-content"
+              >
+                {integracoesAbertas ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {integracoesAbertas ? 'Ocultar' : 'Configurar'}
+              </button>
+            </div>
+          </div>
+
+          {integracoesAbertas && (
+            <div className="border-t border-line px-4 pb-4 pt-3">
+              {gmail?.conectado && (
+                <div className="flex flex-wrap items-end gap-2">
+                  <Entrada
+                    label="O que vira chamado (consulta do Gmail)"
+                    className="min-w-64 flex-1"
+                    value={filtroGmail}
+                    onChange={(e) => setFiltroGmail(e.target.value)}
+                    placeholder="in:inbox newer_than:7d"
+                  />
+                  <Botao tamanho="sm" variante="secundario" onClick={aoSalvarFiltro}>
+                    Salvar filtro
                   </Botao>
                   <a
                     href="https://myaccount.google.com/permissions"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-content-muted hover:bg-surface-2"
+                    className="inline-flex h-8 items-center gap-1 rounded-full border border-line px-3 text-xs text-content-muted hover:bg-surface-2"
                   >
                     <ExternalLink size={12} /> Gerenciar acesso
                   </a>
-                </>
+                </div>
               )}
-            </div>
-          </div>
 
-          {gmail?.conectado && (
-            <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line pt-3">
-              <Entrada
-                label="O que vira chamado (consulta do Gmail)"
-                className="min-w-64 flex-1"
-                value={filtroGmail}
-                onChange={(e) => setFiltroGmail(e.target.value)}
-                placeholder="in:inbox newer_than:7d"
-              />
-              <Botao tamanho="sm" variante="secundario" onClick={aoSalvarFiltro}>
-                Salvar filtro
-              </Botao>
+              <p className="mt-2 text-xs text-content-muted">
+                Sem filtro, a sincronização importaria tudo o que chega na caixa — inclusive
+                newsletters e cobranças. Use a consulta do Gmail para limitar (ex.:{' '}
+                <code className="rounded bg-surface-3 px-1">to:ti@empresa.com</code> ou{' '}
+                <code className="rounded bg-surface-3 px-1">label:Chamados</code>).
+              </p>
             </div>
           )}
-
-          <p className="mt-2 text-xs text-content-muted">
-            Sem filtro, a sincronização importaria tudo o que chega na caixa — inclusive newsletters
-            e cobranças. Use a consulta do Gmail para limitar (ex.:{' '}
-            <code className="rounded bg-surface-3 px-1">to:ti@empresa.com</code> ou{' '}
-            <code className="rounded bg-surface-3 px-1">label:Chamados</code>).
-          </p>
         </section>
       )}
 

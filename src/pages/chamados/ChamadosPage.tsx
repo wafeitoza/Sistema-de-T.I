@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   CheckCircle2,
@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  X,
 } from 'lucide-react'
 import { Badge, BadgeStatus } from '../../components/ui/Badge'
 import { Botao } from '../../components/ui/Botao'
@@ -23,6 +24,7 @@ import { Paginacao } from '../../components/ui/Paginacao'
 import { Resumo } from '../../components/ui/Resumo'
 import { Celula, CabecalhoTabela, Linha, Tabela } from '../../components/ui/Tabela'
 import { tomPrioridade } from '../../components/ui/tom'
+import { lerColecao } from '../../data/repository'
 import { formatarData } from '../../lib/format'
 import {
   conectarGmail,
@@ -33,13 +35,22 @@ import {
 } from '../../lib/gmail'
 import { ordenarPor, useOrdenacao, usePaginacao } from '../../lib/tabela'
 import { useAuthStore } from '../../store/auth'
-import { perfilOperaChamados, useChamadosStore } from '../../store/chamados'
+import {
+  perfilOperaChamados,
+  PRIORIDADES_CHAMADO,
+  STATUS_CHAMADO,
+  useChamadosStore,
+} from '../../store/chamados'
 import { useUiStore } from '../../store/ui'
-import type { Chamado } from '../../types'
+import type { Chamado, PrioridadeChamado, StatusChamado, Usuario } from '../../types'
 import { ChamadoDetalheModal } from './ChamadoDetalheModal'
 import { ChamadoFormModal } from './ChamadoFormModal'
 
 const FILTROS = ['Aberto', 'Em atendimento', 'Aguardando usuário', 'Resolvido', 'Cancelado'] as const
+
+// Pills compactos da barra de ação em lote (estilo caixa de e-mail).
+const CLASSE_ACAO =
+  'rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-content hover:bg-surface-2 focus:border-primary focus:outline-none'
 
 const AVISOS_URL: Record<string, { tom: 'sucesso' | 'erro' | 'info'; texto: string }> = {
   conectado: { tom: 'sucesso', texto: 'Caixa de e-mail conectada. Rode a sincronização para importar.' },
@@ -53,10 +64,19 @@ export function ChamadosPage() {
   const notificar = useUiStore((s) => s.notificar)
   const operar = perfilOperaChamados(usuario?.perfil)
 
+  // Quem pode receber chamado em lote (mesmo recorte do modal de novo chamado).
+  const atendentes = lerColecao<Usuario>('USUARIOS')
+    .filter((u) => u.status === 'Ativo' && u.perfil !== 'Visualizador')
+    .map((u) => ({ valor: u.email, rotulo: `${u.nome} (${u.perfil})` }))
+
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('')
   const [aberto, setAberto] = useState<Chamado | null>(null)
   const [modalNovo, setModalNovo] = useState(false)
+  // Seleção múltipla estilo caixa de e-mail: ids marcados, a barra de ações
+  // mostra o total e age sobre todos de uma vez.
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
+  const checkCabecalho = useRef<HTMLInputElement>(null)
 
   const [gmail, setGmail] = useState<StatusGmail | null>(null)
   const [filtroGmail, setFiltroGmail] = useState('')
@@ -134,6 +154,112 @@ export function ChamadosPage() {
     () => ordenarPor(lista, ord).slice(pag.inicio, pag.fim),
     [lista, ord, pag.inicio, pag.fim],
   )
+
+  // ── Seleção múltipla ──────────────────────────────────────────────────────
+  // A seleção sobrevive a paginação e filtro; a barra de ações sempre mostra
+  // o total marcado, então nada muda fora da vista sem o usuário saber.
+  const visiveisSelecionados = visiveis.filter((c) => selecionados.has(c.id)).length
+  const todosVisiveis = visiveis.length > 0 && visiveisSelecionados === visiveis.length
+  const algunsVisiveis = visiveisSelecionados > 0 && !todosVisiveis
+
+  useEffect(() => {
+    if (checkCabecalho.current) checkCabecalho.current.indeterminate = algunsVisiveis
+  }, [algunsVisiveis])
+
+  function alternar(id: string) {
+    setSelecionados((atual) => {
+      const proximo = new Set(atual)
+      if (proximo.has(id)) proximo.delete(id)
+      else proximo.add(id)
+      return proximo
+    })
+  }
+
+  function alternarTodosVisiveis() {
+    setSelecionados((atual) => {
+      const proximo = new Set(atual)
+      for (const c of visiveis) {
+        if (todosVisiveis) proximo.delete(c.id)
+        else proximo.add(c.id)
+      }
+      return proximo
+    })
+  }
+
+  function selecionarTodosFiltrados() {
+    setSelecionados(new Set(lista.map((c) => c.id)))
+  }
+
+  function limparSelecao() {
+    setSelecionados(new Set())
+  }
+
+  /**
+   * Aplica uma ação da barra em todos os marcados. Falha individual nunca
+   * fica em silêncio: vira aviso com o motivo (mesmo critério do modal).
+   */
+  function aplicarEmLote(
+    ids: string[],
+    executar: (id: string) => { ok: boolean; erro?: string },
+    sucesso: (n: number) => string,
+  ) {
+    let feitos = 0
+    const motivos = new Map<string, number>()
+    for (const id of ids) {
+      try {
+        const r = executar(id)
+        if (r.ok) {
+          feitos += 1
+        } else {
+          const motivo = r.erro ?? 'não foi possível atualizar.'
+          motivos.set(motivo, (motivos.get(motivo) ?? 0) + 1)
+        }
+      } catch (e) {
+        console.error('[chamados] falha na alteração em lote:', id, e)
+        motivos.set('erro inesperado', (motivos.get('erro inesperado') ?? 0) + 1)
+      }
+    }
+
+    const pulados = ids.length - feitos
+    if (feitos === 0) {
+      const primeiro = [...motivos.keys()][0] ?? 'Tente novamente.'
+      notificar('erro', `Nenhum chamado atualizado. ${primeiro}`)
+      return
+    }
+    if (pulados === 0) {
+      notificar('sucesso', sucesso(feitos))
+      return
+    }
+    const resumo = [...motivos]
+      .slice(0, 2)
+      .map(([m, q]) => (q > 1 ? `${q}× ${m}` : m))
+      .join(' · ')
+    notificar('info', `${sucesso(feitos)} ${pulados} não puderam: ${resumo}`)
+  }
+
+  function mudarStatusEmLote(status: StatusChamado) {
+    aplicarEmLote(
+      [...selecionados],
+      (id) => useChamadosStore.getState().mudarStatus(id, status),
+      (n) => `Status "${status}" aplicado a ${n} chamado(s).`,
+    )
+  }
+
+  function atribuirEmLote(email: string) {
+    aplicarEmLote(
+      [...selecionados],
+      (id) => useChamadosStore.getState().atribuir(id, email),
+      (n) => `${n} chamado(s) atribuído(s) a ${email}.`,
+    )
+  }
+
+  function mudarPrioridadeEmLote(prioridade: PrioridadeChamado) {
+    aplicarEmLote(
+      [...selecionados],
+      (id) => useChamadosStore.getState().mudarPrioridade(id, prioridade),
+      (n) => `Prioridade "${prioridade}" aplicada a ${n} chamado(s).`,
+    )
+  }
 
   const abertos = chamados.filter((c) => c.status === 'Aberto')
   const emAtendimento = chamados.filter((c) => c.status === 'Em atendimento')
@@ -300,6 +426,74 @@ export function ChamadosPage() {
         ))}
       </div>
 
+      {/* Barra de ação em lote — só aparece com seleção ativa (estilo e-mail). */}
+      {operar && selecionados.size > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line bg-card px-3 py-2">
+          <span className="text-sm font-semibold">{selecionados.size} selecionado(s)</span>
+          {todosVisiveis && lista.length > selecionados.size && (
+            <button
+              type="button"
+              onClick={selecionarTodosFiltrados}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Selecionar todos os {lista.length} da lista
+            </button>
+          )}
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <select
+              value=""
+              onChange={(e) => e.target.value && mudarStatusEmLote(e.target.value as StatusChamado)}
+              aria-label="Mudar o status dos chamados selecionados"
+              className={CLASSE_ACAO}
+            >
+              <option value="">Mudar status…</option>
+              {STATUS_CHAMADO.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            {atendentes.length > 0 && (
+              <select
+                value=""
+                onChange={(e) => e.target.value && atribuirEmLote(e.target.value)}
+                aria-label="Atribuir os chamados selecionados a…"
+                className={CLASSE_ACAO}
+              >
+                <option value="">Atribuir a…</option>
+                {atendentes.map((a) => (
+                  <option key={a.valor} value={a.valor}>
+                    {a.rotulo}
+                  </option>
+                ))}
+              </select>
+            )}
+            <select
+              value=""
+              onChange={(e) =>
+                e.target.value && mudarPrioridadeEmLote(e.target.value as PrioridadeChamado)
+              }
+              aria-label="Mudar a prioridade dos chamados selecionados"
+              className={CLASSE_ACAO}
+            >
+              <option value="">Mudar prioridade…</option>
+              {PRIORIDADES_CHAMADO.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={limparSelecao}
+              className="inline-flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-xs font-medium text-content-muted hover:bg-surface-2 hover:text-content"
+            >
+              <X size={13} /> Limpar
+            </button>
+          </div>
+        </div>
+      )}
+
       {lista.length === 0 ? (
         <EstadoVazio
           titulo="Nenhum chamado"
@@ -319,6 +513,18 @@ export function ChamadosPage() {
       ) : (
         <Tabela className="table-fixed">
           <CabecalhoTabela
+            antesColunas={
+              operar ? (
+                <input
+                  ref={checkCabecalho}
+                  type="checkbox"
+                  checked={todosVisiveis}
+                  onChange={alternarTodosVisiveis}
+                  aria-label="Selecionar todos os chamados da página"
+                  className="h-4 w-4 accent-primary align-middle"
+                />
+              ) : undefined
+            }
             colunas={['ID', 'Assunto', 'Solicitante', 'Prioridade', 'Responsável', 'Aberto em', 'Status', '']}
             chaves={['id', 'assunto', 'solicitante', 'prioridade', 'atribuidoA', 'criadoEm', 'status', null]}
             classes={[
@@ -336,7 +542,24 @@ export function ChamadosPage() {
           />
           <tbody>
             {visiveis.map((c) => (
-              <Linha key={c.id} onClick={() => setAberto(c)}>
+              <Linha
+                key={c.id}
+                onClick={() => setAberto(c)}
+                className={selecionados.has(c.id) ? 'bg-primary/5' : undefined}
+              >
+                {operar && (
+                  <Celula className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.has(c.id)}
+                      onChange={() => alternar(c.id)}
+                      // A linha inteira abre o detalhe; o checkbox só marca.
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Selecionar o chamado ${c.id}`}
+                      className="h-4 w-4 accent-primary"
+                    />
+                  </Celula>
+                )}
                 <Celula className="hidden whitespace-nowrap font-mono text-xs font-semibold md:table-cell">
                   {c.id}
                 </Celula>

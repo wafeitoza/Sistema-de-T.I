@@ -18,12 +18,26 @@ interface CabecalhoProps {
   classes?: (string | null | undefined)[]
   ord?: Ordenacao | null
   aoOrdenar?: (chave: string) => void
+  /** Coluna extra antes das demais (ex.: checkbox de seleção múltipla). */
+  antesColunas?: ReactNode
 }
 
-export function CabecalhoTabela({ colunas, chaves, classes, ord, aoOrdenar }: CabecalhoProps) {
+export function CabecalhoTabela({
+  colunas,
+  chaves,
+  classes,
+  ord,
+  aoOrdenar,
+  antesColunas,
+}: CabecalhoProps) {
   return (
     <thead>
       <tr className="border-b border-line bg-surface-2">
+        {antesColunas && (
+          <th scope="col" className="w-12 px-4 py-3">
+            {antesColunas}
+          </th>
+        )}
         {colunas.map((c, i) => {
           const chave = chaves ? chaves[i] : null
           const ativa = !!ord && chave !== null && chave !== undefined && ord.chave === chave
@@ -85,15 +99,19 @@ export function Celula({
 export function Linha({
   children,
   onClick,
+  className,
 }: {
   children: ReactNode
   onClick?: () => void
+  /** Classe extra (ex.: realce de linha selecionada). */
+  className?: string
 }) {
   return (
     <tr
       className={cn(
         'border-b border-line last:border-b-0 hover:bg-surface-2/60',
         onClick && 'cursor-pointer',
+        className,
       )}
       onClick={onClick}
     >

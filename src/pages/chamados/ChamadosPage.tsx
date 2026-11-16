@@ -404,7 +404,16 @@ export function ChamadosPage() {
       )}
 
       <ChamadoDetalheModal chamado={aberto} perfil={usuario?.perfil} aoFechar={() => setAberto(null)} />
-      <ChamadoFormModal aberto={modalNovo} aoFechar={() => setModalNovo(false)} />
+      <ChamadoFormModal
+        aberto={modalNovo}
+        aoFechar={() => setModalNovo(false)}
+        aoCriar={() => {
+          // Limpa busca/filtro: com filtro ativo (ex.: "Resolvido") o chamado
+          // novo é criado mas não aparece na lista, e parece que não funcionou.
+          setBusca('')
+          setFiltro('')
+        }}
+      />
     </div>
   )
 }

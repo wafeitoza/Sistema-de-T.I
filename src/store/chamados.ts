@@ -125,7 +125,13 @@ export const useChamadosStore = create<ChamadosState>((set, get) => ({
 
     const proximos = [novo, ...get().chamados]
     gravarColecao(COLECAO, proximos)
-    registrarNaAuditoria('CREATE', novo.id, null, novo)
+    // Auditoria é best-effort: se o log falhar (ex.: quota do localStorage),
+    // o chamado já existe — não pode travar o `set` e sumir da lista.
+    try {
+      registrarNaAuditoria('CREATE', novo.id, null, novo)
+    } catch (e) {
+      console.error('[chamados] falha ao registrar auditoria do novo chamado:', e)
+    }
     set({ chamados: proximos })
     return { ok: true }
   },

@@ -15,7 +15,16 @@ const TOM_PRIORIDADE: Record<string, string> = {
   Baixa: ' · baixa',
 }
 
-export function ChamadoFormModal({ aberto, aoFechar }: { aberto: boolean; aoFechar: () => void }) {
+export function ChamadoFormModal({
+  aberto,
+  aoFechar,
+  aoCriar,
+}: {
+  aberto: boolean
+  aoFechar: () => void
+  /** Chamado depois de criar — a página usa para garantir que ele apareça na lista. */
+  aoCriar?: () => void
+}) {
   const { abrir } = useChamadosStore()
   const notificar = useUiStore((s) => s.notificar)
   const usuario = useAuthStore((s) => s.usuario)
@@ -33,9 +42,18 @@ export function ChamadoFormModal({ aberto, aoFechar }: { aberto: boolean; aoFech
     .map((u) => ({ valor: u.email, rotulo: `${u.nome} (${u.perfil})` }))
 
   function enviar() {
-    const r = abrir({ assunto, descricao, solicitante, prioridade })
-    if (!r.ok) {
-      setErro(r.erro ?? 'Não foi possível abrir o chamado.')
+    // Qualquer falha vira mensagem visível no modal: antes, erro de validação
+    // que não fosse do assunto era gravado em `erro` mas nunca renderizado —
+    // o modal ficava aberto sem nenhum aviso e parecia "não funcionar".
+    try {
+      const r = abrir({ assunto, descricao, solicitante, prioridade })
+      if (!r.ok) {
+        setErro(r.erro ?? 'Não foi possível abrir o chamado.')
+        return
+      }
+    } catch (e) {
+      console.error('[chamados] falha ao abrir chamado:', e)
+      setErro('Não foi possível abrir o chamado. Tente novamente.')
       return
     }
     notificar('sucesso', 'Chamado aberto.')
@@ -43,6 +61,7 @@ export function ChamadoFormModal({ aberto, aoFechar }: { aberto: boolean; aoFech
     setDescricao('')
     setErro('')
     aoFechar()
+    aoCriar?.()
   }
 
   return (
@@ -60,12 +79,19 @@ export function ChamadoFormModal({ aberto, aoFechar }: { aberto: boolean; aoFech
       }
     >
       <div className="space-y-4">
+        {erro && (
+          <p
+            role="alert"
+            className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs font-medium text-danger"
+          >
+            {erro}
+          </p>
+        )}
         <Entrada
           label="Assunto"
           value={assunto}
           onChange={(e) => setAssunto(e.target.value)}
           placeholder="Ex.: notebook não liga"
-          erro={erro && assunto.trim().length < 3 ? erro : undefined}
         />
         <AreaTexto
           label="Descrição"
